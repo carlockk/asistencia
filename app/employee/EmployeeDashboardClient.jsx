@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import TopBar from "../components/TopBar";
 
 function useClock() {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState(null);
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    const tick = () => setNow(new Date());
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
   return now;
@@ -102,19 +104,23 @@ export default function EmployeeDashboardClient({ employeeName }) {
                 </span>
               </div>
               <div className="text-3xl md:text-4xl font-bold text-slate-800 tracking-tight">
-                {now.toLocaleTimeString("es-CL", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit"
-                })}
+                {now
+                  ? now.toLocaleTimeString("es-CL", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit"
+                    })
+                  : "--:--:--"}
               </div>
               <p className="text-xs text-slate-700 mt-1">
-                {now.toLocaleDateString("es-CL", {
-                  weekday: "long",
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric"
-                })}
+                {now
+                  ? now.toLocaleDateString("es-CL", {
+                      weekday: "long",
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric"
+                    })
+                  : "Cargando fecha..."}
               </p>
               <p className="text-[11px] text-slate-700 mt-3 max-w-xl">
                 Marca tus entradas y salidas en tiempo real. Recuerda mantener la pagina abierta mientras se procesa.
