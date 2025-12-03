@@ -5,6 +5,8 @@ import User from "@/models/User";
 import { verifyToken } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
+export const runtime = "nodejs";
+
 async function requireAdmin() {
   const token = cookies().get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
