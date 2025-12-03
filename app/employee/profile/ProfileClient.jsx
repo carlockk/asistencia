@@ -20,6 +20,7 @@ export default function ProfileClient() {
   });
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   async function loadMe() {
     setLoading(true);
@@ -83,14 +84,29 @@ export default function ProfileClient() {
   function handleAvatarFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target?.result;
-      if (typeof url === "string") {
-        setForm((prev) => ({ ...prev, avatarUrl: url }));
-      }
-    };
-    reader.readAsDataURL(file);
+    uploadAvatar(file);
+  }
+
+  async function uploadAvatar(file) {
+    setUploadingAvatar(true);
+    setError("");
+    setInfo("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error subiendo la imagen");
+      setForm((prev) => ({ ...prev, avatarUrl: data.url }));
+      setInfo("Imagen subida correctamente.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
   }
 
   const topBarName =
@@ -166,15 +182,20 @@ export default function ProfileClient() {
                     placeholder="https://..."
                   />
                   <p className="text-[10px] text-slate-500 mt-1">
-                    Mas adelante puedes conectar Cloudinary para subir la foto
-                    directamente. Por ahora puedes pegar aqui una URL o subir una imagen.
+                    Puedes pegar una URL o subir una imagen; se almacena en Cloudinary.
                   </p>
                   <input
                     type="file"
                     accept="image/*"
                     className="text-[11px] text-slate-600 mt-2"
                     onChange={handleAvatarFile}
+                    disabled={uploadingAvatar}
                   />
+                  {uploadingAvatar && (
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Subiendo imagen...
+                    </p>
+                  )}
                 </div>
               </div>
 

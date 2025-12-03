@@ -26,6 +26,8 @@ export default function AdminDashboardClient({ adminName }) {
   const [viewLoading, setViewLoading] = useState(false);
   const [viewError, setViewError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploadingCreateAvatar, setUploadingCreateAvatar] = useState(false);
+  const [uploadingEditAvatar, setUploadingEditAvatar] = useState(false);
   const pageSize = 10;
 
   const baseForm = {
@@ -191,17 +193,34 @@ export default function AdminDashboardClient({ adminName }) {
     router.push("/");
   }
 
-  function handleAvatarFileChange(e, setter) {
+  async function handleAvatarFileChange(e, setter, mode = "create") {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target?.result;
-      if (typeof url === "string") {
-        setter((prev) => ({ ...prev, avatarUrl: url }));
-      }
-    };
-    reader.readAsDataURL(file);
+    const setUploading =
+      mode === "edit" ? setUploadingEditAvatar : setUploadingCreateAvatar;
+    const setErrorFn = mode === "edit" ? setEditError : setError;
+    const setInfoFn = mode === "edit" ? setEditInfo : setInfo;
+
+    setErrorFn("");
+    setInfoFn("");
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error subiendo la imagen");
+      setter((prev) => ({ ...prev, avatarUrl: data.url }));
+      setInfoFn(
+        mode === "edit"
+          ? "Imagen subida. Guarda para aplicar cambios."
+          : "Imagen subida correctamente."
+      );
+    } catch (err) {
+      setErrorFn(err.message);
+    } finally {
+      setUploading(false);
+    }
   }
 
   function formatTime(value) {
@@ -696,8 +715,14 @@ export default function AdminDashboardClient({ adminName }) {
                     type="file"
                     accept="image/*"
                     className="text-[11px] text-slate-600 mt-2"
-                    onChange={(e) => handleAvatarFileChange(e, setForm)}
+                    onChange={(e) => handleAvatarFileChange(e, setForm, "create")}
+                    disabled={uploadingCreateAvatar}
                   />
+                  {uploadingCreateAvatar && (
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Subiendo imagen a Cloudinary...
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -949,8 +974,14 @@ export default function AdminDashboardClient({ adminName }) {
                     type="file"
                     accept="image/*"
                     className="text-[11px] text-slate-600 mt-2"
-                    onChange={(e) => handleAvatarFileChange(e, setEditForm)}
+                    onChange={(e) => handleAvatarFileChange(e, setEditForm, "edit")}
+                    disabled={uploadingEditAvatar}
                   />
+                  {uploadingEditAvatar && (
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Subiendo imagen a Cloudinary...
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2 flex justify-end">

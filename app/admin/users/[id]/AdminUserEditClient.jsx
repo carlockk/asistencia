@@ -27,6 +27,7 @@ export default function AdminUserEditClient({ userId }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -91,6 +92,27 @@ export default function AdminUserEditClient({ userId }) {
 
   function goBack() {
     router.push("/admin");
+  }
+
+  async function handleAvatarFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    setError("");
+    setInfo("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error subiendo la imagen");
+      setForm((prev) => ({ ...prev, avatarUrl: data.url }));
+      setInfo("Imagen subida. Guarda para aplicar cambios.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
   }
 
   async function handleLogout() {
@@ -310,6 +332,18 @@ export default function AdminUserEditClient({ userId }) {
                     }
                     placeholder="https://..."
                   />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="text-[11px] text-slate-600 mt-2"
+                    onChange={handleAvatarFile}
+                    disabled={uploadingAvatar}
+                  />
+                  {uploadingAvatar && (
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Subiendo imagen a Cloudinary...
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2 flex justify-end">
