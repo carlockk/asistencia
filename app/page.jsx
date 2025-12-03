@@ -4,7 +4,8 @@ import HeroClock from "./components/HeroClock";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen w-full relative bg-slate-900">
+    <div className="min-h-screen w-full relative bg-white md:bg-transparent">
+      {/* Fondo y overlay solo en desktop */}
       <div
         className="absolute inset-0 hidden md:block"
         style={{
@@ -12,14 +13,14 @@ export default function HomePage() {
             "url('https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=2000&q=80')",
           backgroundSize: "cover",
           backgroundPosition: "center",
-          backgroundRepeat: "no-repeat"
+          backgroundRepeat: "no-repeat",
         }}
       />
-      <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-slate-900/70 via-slate-900/50 to-slate-900/20" />
+      <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-slate-900/70 via-slate-900/50 to-slate-900/20"></div>
 
-      <div className="relative z-10 min-h-screen flex flex-col md:flex-row">
-        {/* Hero solo en desktop */}
-        <div className="hidden md:flex flex-col justify-center pl-10 md:pl-16 max-w-2xl text-white gap-6 py-20 flex-1">
+      <div className="relative z-10 min-h-screen">
+        {/* Hero solo desktop */}
+        <div className="hidden md:flex flex-col justify-center pl-10 md:pl-16 max-w-2xl text-white gap-6 py-20">
           <div className="space-y-2 text-[11px]">
             <div className="inline-flex px-3 py-1 rounded-full font-semibold bg-white/15 backdrop-blur-sm border border-white/20">
               Control horario en tiempo real
@@ -46,13 +47,15 @@ export default function HomePage() {
           <HeroClock />
         </div>
 
-        {/* Login centrado; en móvil ocupa toda la pantalla */}
-        <div className="flex-1 flex items-start justify-center md:items-center px-4 sm:px-6 py-10 md:py-0 bg-white md:bg-white/85 md:backdrop-blur md:border-l md:border-white/60 shadow-xl">
-          <Suspense fallback={<div className="text-sm text-slate-600">Cargando...</div>}>
-            <div className="w-full max-w-md mt-8 md:mt-0">
-              <LoginClient />
-            </div>
-          </Suspense>
+        {/* Login: en móvil ocupa ancho completo; en desktop se superpone delgado a la derecha */}
+        <div className="flex justify-center md:block">
+          <div className="w-full max-w-md bg-white shadow-xl px-4 sm:px-6 py-10 relative md:absolute md:top-0 md:right-0 md:h-full md:bg-white/85 md:backdrop-blur md:border-l md:border-white/60 md:px-10 md:flex md:items-start md:justify-center">
+            <Suspense fallback={<div className="text-sm text-slate-600">Cargando...</div>}>
+              <div className="w-full max-w-md mt-8 md:mt-10">
+                <LoginClient />
+              </div>
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>
