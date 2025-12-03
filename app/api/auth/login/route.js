@@ -4,6 +4,8 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import { signToken } from "@/lib/auth";
 
+export const runtime = "nodejs";
+
 export async function POST(req) {
   try {
     await connectDB();
