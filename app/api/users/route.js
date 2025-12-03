@@ -1,0 +1,141 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
+import { verifyToken } from "@/lib/auth";
+import bcrypt from "bcryptjs";
+
+async function requireAdmin() {
+  const token = cookies().get("token")?.value;
+  if (!token) throw new Error("UNAUTHORIZED");
+  const payload = verifyToken(token);
+  if (payload.role !== "admin") throw new Error("FORBIDDEN");
+  return payload;
+}
+
+export async function GET(req) {
+  try {
+    await connectDB();
+    await requireAdmin();
+
+    const { searchParams } = new URL(req.url);
+    const role = searchParams.get("role");
+
+    const filter = {};
+    if (role) filter.role = role;
+
+    const users = await User.find(filter).sort({ createdAt: -1 });
+
+    return NextResponse.json({
+      users: users.map((u) => ({
+        id: u._id.toString(),
+        username: u.username,
+        role: u.role,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        docType: u.docType,
+        docNumber: u.docNumber,
+        address: u.address,
+        commune: u.commune,
+        city: u.city,
+        email: u.email,
+        hourlyRate: u.hourlyRate,
+        observation: u.observation,
+        // 👇 aquí devolvemos el avatar
+        avatarUrl: u.avatarUrl || ""
+      }))
+    });
+  } catch (err) {
+    console.error("GET /api/users", err);
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "No autorizado" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { message: "Error listando usuarios" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req) {
+  try {
+    await connectDB();
+    await requireAdmin();
+
+    const body = await req.json();
+
+    const {
+      username,
+      password,
+      role,
+      firstName,
+      lastName,
+      docType,
+      docNumber,
+      address,
+      commune,
+      city,
+      email,
+      hourlyRate,
+      observation,
+      // 👇 lo leemos del body porque tu formulario lo envía
+      avatarUrl
+    } = body;
+
+    if (!username || !password) {
+      return NextResponse.json(
+        { message: "Usuario y contraseña son obligatorios" },
+        { status: 400 }
+      );
+    }
+
+    const exists = await User.findOne({ username });
+    if (exists) {
+      return NextResponse.json(
+        { message: "Ese usuario ya existe" },
+        { status: 400 }
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      username,
+      passwordHash,
+      role: role === "admin" ? "admin" : "employee",
+      firstName,
+      lastName,
+      docType,
+      docNumber,
+      address,
+      commune,
+      city,
+      email,
+      hourlyRate: Number(hourlyRate) || 0,
+      observation,
+      // 👇 lo guardamos en la BD
+      avatarUrl
+    });
+
+    return NextResponse.json(
+      {
+        user: {
+          id: user._id.toString(),
+          username: user.username,
+          role: user.role,
+          avatarUrl: user.avatarUrl || ""
+        }
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("POST /api/users", err);
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "No autorizado" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { message: "Error creando usuario" },
+      { status: 500 }
+    );
+  }
+}
