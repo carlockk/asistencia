@@ -4,8 +4,6 @@ import { verifyToken } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
-export const runtime = "nodejs";
-
 export async function GET() {
   try {
     const token = cookies().get("token")?.value;

@@ -8,7 +8,11 @@ export const runtime = "nodejs";
 function requireAuth() {
   const token = cookies().get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
-  verifyToken(token);
+  try {
+    verifyToken(token);
+  } catch {
+    throw new Error("UNAUTHORIZED");
+  }
 }
 
 export async function POST(req) {
