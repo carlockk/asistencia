@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginClient() {
   const router = useRouter();
@@ -38,6 +39,21 @@ export default function LoginClient() {
 
   return (
     <div className="space-y-6">
+      {/* Logo + nombre sistema */}
+      <div className="flex flex-col items-center mb-2">
+        <Image
+          src="/asistencia.png"
+          alt="Logo Asiste"
+          width={56}
+          height={56}
+          className="h-14 w-14 object-contain"
+          priority
+        />
+        <span className="mt-2 text-[11px] uppercase tracking-[0.12em] text-slate-500">
+          Asiste · Sistema de asistencia
+        </span>
+      </div>
+
       {/* Encabezado */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">

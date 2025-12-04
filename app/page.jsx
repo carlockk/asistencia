@@ -4,7 +4,7 @@ import HeroClock from "./components/HeroClock";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen w-full relative bg-white md:bg-transparent">
+    <div className="min-h-screen w-full relative">
       {/* Fondo y overlay solo en desktop */}
       <div
         className="absolute inset-0 hidden md:block"
@@ -47,9 +47,9 @@ export default function HomePage() {
           <HeroClock />
         </div>
 
-        {/* Login: en móvil ocupa ancho completo; en desktop se superpone delgado a la derecha */}
+        {/* Login: en móvil sin card; en desktop panel blanco a la derecha */}
         <div className="flex justify-center md:block">
-          <div className="w-full max-w-md bg-white shadow-xl px-4 sm:px-6 py-10 relative md:absolute md:top-0 md:right-0 md:h-full md:bg-white/85 md:backdrop-blur md:border-l md:border-white/60 md:px-10 md:flex md:items-start md:justify-center">
+          <div className="w-full max-w-md px-4 sm:px-6 py-10 relative md:absolute md:top-0 md:right-0 md:h-full md:bg-white/85 md:backdrop-blur md:border-l md:border-white/60 md:px-10 md:flex md:items-start md:justify-center">
             <Suspense fallback={<div className="text-sm text-slate-600">Cargando...</div>}>
               <div className="w-full max-w-md mt-8 md:mt-10">
                 <LoginClient />
