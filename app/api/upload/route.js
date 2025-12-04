@@ -38,21 +38,13 @@ export async function POST(req) {
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const base64 = Buffer.from(bytes).toString("base64");
+    const uploadStr = `data:${file.type};base64,${base64}`;
 
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: "asistencia/avatars",
-          resource_type: "image",
-          transformation: [{ width: 800, height: 800, crop: "limit" }]
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
-        }
-      );
-      stream.end(buffer);
+    const uploadResult = await cloudinary.uploader.upload(uploadStr, {
+      folder: "asistencia/avatars",
+      resource_type: "image",
+      transformation: [{ width: 800, height: 800, crop: "limit" }]
     });
 
     return NextResponse.json({
