@@ -44,7 +44,6 @@ export default function TopBar({
     } else if (actions) {
       list = [actions];
     }
-    // filtramos elementos vacíos para evitar “botones” fantasma
     return list.filter(Boolean);
   }, [actions]);
 
@@ -77,7 +76,6 @@ export default function TopBar({
         </div>
 
         <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto sm:justify-end">
-          {/* Info usuario en desktop */}
           <div className="hidden sm:flex items-center gap-2 flex-wrap justify-start min-w-0">
             {subtitle && (
               <span className="text-[11px] uppercase tracking-wide text-slate-500">
@@ -90,7 +88,6 @@ export default function TopBar({
             </span>
           </div>
 
-          {/* Acciones desktop */}
           <div className="hidden sm:flex items-center gap-2 flex-wrap justify-end min-w-0 text-[13px]">
             <div className="flex items-center gap-2">{actions}</div>
             {onLogout && (
@@ -104,7 +101,6 @@ export default function TopBar({
             )}
           </div>
 
-          {/* Botón menú móvil */}
           <div className="flex items-center gap-2 min-w-0 sm:hidden ml-auto">
             <button
               className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm"
@@ -118,7 +114,6 @@ export default function TopBar({
         </div>
       </div>
 
-      {/* Menú deslizante móvil */}
       {menuOpen && (
         <div
           className="fixed inset-0 z-50 sm:hidden"
@@ -141,18 +136,15 @@ export default function TopBar({
               </button>
             </div>
 
-            {/* Usuario (avatar grande + bienvenida) */}
             <div className="flex items-center gap-3 text-base font-semibold text-slate-800 mt-1">
               <AvatarMini name={userName} avatarUrl={avatarUrl} size="lg" />
               <span className="truncate">Bienvenido, {userName}</span>
             </div>
 
-            {/* Subtítulo / rol */}
             <div className="flex flex-col gap-1 text-xs uppercase tracking-wide text-slate-500">
               {subtitle}
             </div>
 
-            {/* Acciones de navegación */}
             <div className="flex flex-col text-sm text-slate-700 flex-1">
               <div className="-mx-4">
                 {mobileActions.map((item, idx) => (
@@ -162,7 +154,6 @@ export default function TopBar({
                 ))}
               </div>
 
-            {/* Cerrar sesión full ancho */}
               <div className="mt-auto -mx-4">
                 {onLogout && (
                   <button

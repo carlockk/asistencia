@@ -6,17 +6,9 @@
   color-scheme: light;
 }
 
-:root.dark {
-  color-scheme: dark;
-}
-
 body {
   @apply bg-gradient-to-br from-pastel-rosa via-pastel-celeste to-pastel-menta min-h-screen text-slate-800 overflow-x-hidden;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-:root.dark body {
-  @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100;
 }
 
 .app-shell {
@@ -31,10 +23,6 @@ body {
   @apply bg-white/80 backdrop-blur-md shadow-soft rounded-md border border-white/60;
 }
 
-:root.dark .card {
-  @apply bg-slate-800/80 border-slate-700 text-slate-100;
-}
-
 .btn {
   @apply inline-flex items-center justify-center rounded px-4 py-2 text-sm font-semibold transition;
 }
@@ -45,10 +33,6 @@ body {
 
 .btn-secondary {
   @apply btn bg-white text-banco-rojo border border-banco-rojo hover:bg-banco-rojo hover:text-white;
-}
-
-:root.dark .btn-secondary {
-  @apply bg-slate-800 text-banco-amarillo border-slate-600 hover:bg-slate-700 hover:text-white;
 }
 
 .btn-success {
@@ -63,24 +47,12 @@ body {
   @apply w-full rounded-md border border-slate-200 bg-white/80 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-banco-amarillo focus:border-banco-amarillo;
 }
 
-:root.dark .input {
-  @apply border-slate-600 bg-slate-800 text-slate-100 focus:ring-banco-amarillo focus:border-banco-amarillo;
-}
-
 .label {
   @apply block text-xs font-semibold text-slate-600 mb-1;
 }
 
-:root.dark .label {
-  @apply text-slate-300;
-}
-
 .badge {
   @apply inline-flex items-center rounded px-3 py-1 text-xs font-semibold bg-pastel-lila/80 text-slate-700;
-}
-
-:root.dark .badge {
-  @apply bg-slate-700 text-slate-100;
 }
 
 /* Botones del menú móvil (lista) con efecto de “reflejo” */
