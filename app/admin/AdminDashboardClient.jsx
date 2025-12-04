@@ -538,8 +538,11 @@ export default function AdminDashboardClient({ adminName }) {
       </div>
 
       {showCreateModal && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-start md:items-center justify-center p-4">
-          <div className="w-full max-w-2xl">
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-start md:items-center justify-center p-4"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="card p-5 md:p-6 relative max-h-[90vh] overflow-auto">
               <button
                 type="button"
@@ -767,8 +770,15 @@ export default function AdminDashboardClient({ adminName }) {
       )}
 
       {showEditModal && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-start md:items-center justify-center p-4">
-          <div className="w-full max-w-2xl">
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-start md:items-center justify-center p-4"
+          onClick={() => {
+            setShowEditModal(false);
+            setEditingId(null);
+            setEditForm({ ...baseForm });
+          }}
+        >
+          <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="card p-5 md:p-6 relative max-h-[90vh] overflow-auto">
               <button
                 type="button"
@@ -1000,8 +1010,15 @@ export default function AdminDashboardClient({ adminName }) {
       )}
 
       {showViewModal && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-start md:items-center justify-center p-4">
-          <div className="w-full max-w-5xl">
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-start md:items-center justify-center p-4"
+          onClick={() => {
+            setShowViewModal(false);
+            setViewEmployee(null);
+            setViewRecords([]);
+          }}
+        >
+          <div className="w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
             <div className="card p-5 md:p-6 relative max-h-[90vh] overflow-auto">
               <button
                 type="button"

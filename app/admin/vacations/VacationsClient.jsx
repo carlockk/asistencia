@@ -4,10 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../../components/TopBar";
 
+function parseYMD(value) {
+  if (!value) return null;
+  // Evita desfase horario al crear la fecha en local time
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return null;
+  const [_, y, m, d] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d));
+}
+
 function formatDate(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (isNaN(d)) return "-";
+  const d = parseYMD(value);
+  if (!d || isNaN(d)) return "-";
   return d.toLocaleDateString("es-CL", {
     day: "2-digit",
     month: "short",
@@ -16,11 +24,16 @@ function formatDate(value) {
 }
 
 function calcDays(startDate, endDate) {
-  if (!startDate || !endDate) return 0;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (isNaN(start) || isNaN(end)) return 0;
-  const diff = end.getTime() - start.getTime();
+  const start = parseYMD(startDate);
+  const end = parseYMD(endDate);
+  if (!start || !end || isNaN(start) || isNaN(end)) return 0;
+  const startUTC = Date.UTC(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate()
+  );
+  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  const diff = endUTC - startUTC;
   return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
 }
 

@@ -54,3 +54,49 @@ body {
 .badge {
   @apply inline-flex items-center rounded px-3 py-1 text-xs font-semibold bg-pastel-lila/80 text-slate-700;
 }
+
+/* Botones del menú móvil (lista) con efecto de “reflejo” */
+@keyframes shine-swipe {
+  0% {
+    left: -150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+.mobile-menu-item {
+  @apply w-full text-left bg-white border-b border-slate-200 px-4 py-3 text-sm text-slate-700;
+  position: relative;
+  overflow: hidden;
+}
+
+/* primera opción con borde superior también */
+.mobile-menu-item:first-child {
+  border-top: 1px solid rgb(226 232 240); /* slate-200 */
+}
+
+.mobile-menu-item::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  height: 100%;
+  width: 55%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.7),
+    transparent
+  );
+  transform: skewX(-20deg);
+}
+
+.mobile-menu-item:hover::after {
+  animation: shine-swipe 0.55s ease-out;
+}
+
+/* Cerrar sesión: que se sienta parte de la lista, full ancho */
+.mobile-menu-logout {
+  border-top-width: 1px;
+}
