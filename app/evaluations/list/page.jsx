@@ -14,8 +14,9 @@ export default async function EvaluationListPage() {
   } catch {
     redirect("/");
   }
-  if (payload.role !== "admin") {
-    if (payload.role === "evaluator") {
+  const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+  if (!roles.includes("admin")) {
+    if (roles.includes("evaluator")) {
       redirect("/evaluations");
     }
     redirect("/employee");

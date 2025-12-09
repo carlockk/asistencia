@@ -70,6 +70,14 @@ export default function EvaluationListClient({ adminName }) {
     }
   }
 
+  function handleCloseTab() {
+    if (typeof window !== "undefined") {
+      window.close();
+      // Por si window.close no funciona, redirigimos.
+      router.push("/evaluations");
+    }
+  }
+
   function clearFilters() {
     setQ("");
     setFrom("");
@@ -99,15 +107,8 @@ export default function EvaluationListClient({ adminName }) {
             >
               Vacaciones
             </button>
-            <button
-              type="button"
-              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
-              onClick={() => router.push("/evaluations")}
-            >
-              Crear evaluación
-            </button>
             <span className="font-semibold text-slate-800 sm:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4">
-              Ver evaluaciones
+              Evaluaciones
             </span>
           </div>
         }
@@ -118,19 +119,21 @@ export default function EvaluationListClient({ adminName }) {
       />
 
       <div className="card p-5 md:p-6 space-y-4">
+        <div className="sm:hidden flex justify-end">
+          <button
+            type="button"
+            className="btn-secondary text-[12px]"
+            onClick={handleCloseTab}
+          >
+            Cerrar
+          </button>
+        </div>
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs text-slate-500">Filtra y busca en tiempo real</p>
             <h2 className="text-lg font-semibold text-slate-800">Evaluaciones</h2>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              className="btn-secondary text-[12px]"
-              onClick={() => router.push("/evaluations")}
-            >
-              Crear evaluación
-            </button>
             <button type="button" className="btn-secondary text-[12px]" onClick={clearFilters}>
               Limpiar filtros
             </button>

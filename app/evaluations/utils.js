@@ -33,3 +33,13 @@ export function collectCheckableIds(items = [], acc = []) {
   });
   return acc;
 }
+
+export function optionsForItem(item) {
+  if (Array.isArray(item?.options) && item.options.length > 0) {
+    return item.options.map((opt) => ({
+      value: opt.value || opt.label?.toLowerCase()?.replace(/\s+/g, "_") || "",
+      label: opt.label || opt.value
+    }));
+  }
+  return ratingOptions;
+}

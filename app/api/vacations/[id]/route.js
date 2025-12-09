@@ -10,7 +10,8 @@ async function requireAdmin() {
   const token = cookieStore.get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
   const payload = verifyToken(token);
-  if (payload.role !== "admin") throw new Error("FORBIDDEN");
+  const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+  if (!roles.includes("admin")) throw new Error("FORBIDDEN");
   return payload;
 }
 

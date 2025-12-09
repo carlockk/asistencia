@@ -79,8 +79,9 @@ export async function GET(_req, { params }) {
       return NextResponse.json({ message: "No encontrado" }, { status: 404 });
     }
 
+    const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
     if (
-      payload.role !== "admin" &&
+      !roles.includes("admin") &&
       evaluation.assignedTo?._id?.toString() !== payload.id
     ) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
@@ -112,10 +113,11 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ message: "No encontrado" }, { status: 404 });
     }
 
+    const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
     if (evaluation.assignedTo?._id?.toString() !== payload.id) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
-    if (payload.role !== "evaluator") {
+    if (!roles.includes("evaluator")) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
 
@@ -129,6 +131,29 @@ export async function PUT(req, { params }) {
         { message: "Agrega respuestas al checklist" },
         { status: 400 }
       );
+    }
+    if (checkableIds.length > 0) {
+      const validById = new Map();
+      (evaluation.checklist?.items || []).forEach(function walk(item) {
+        if (item?.id) {
+          const opts =
+            Array.isArray(item.options) && item.options.length > 0
+              ? item.options.map((o) => o.value || o.label)
+              : ["siempre", "casi_siempre", "aveces", "nunca"];
+          validById.set(item.id.toString(), opts);
+        }
+        if (item?.children?.length) item.children.forEach(walk);
+      });
+      const invalid = responses.some((r) => {
+        const allowed = validById.get(r.itemId);
+        return Array.isArray(allowed) ? !allowed.includes(r.value) : false;
+      });
+      if (invalid) {
+        return NextResponse.json(
+          { message: "Hay respuestas con opciones no permitidas" },
+          { status: 400 }
+        );
+      }
     }
 
     evaluation.responses = responses;
@@ -159,7 +184,8 @@ export async function DELETE(_req, { params }) {
   try {
     await connectDB();
     const payload = await requireAuth();
-    if (payload.role !== "admin") {
+    const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+    if (!roles.includes("admin")) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
 

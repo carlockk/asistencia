@@ -16,13 +16,15 @@ export async function GET(req, { params }) {
   try {
     await connectDB();
 
-    const token = cookies().get("token")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
     if (!token) {
       return NextResponse.json({ message: "No autenticado" }, { status: 401 });
     }
 
     const payload = verifyToken(token);
-    if (payload.role !== "admin") {
+    const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+    if (!roles.includes("admin")) {
       return NextResponse.json(
         { message: "Solo admin puede ver este detalle" },
         { status: 403 }

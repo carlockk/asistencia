@@ -25,9 +25,14 @@ export default function LoginClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error al iniciar sesión");
 
-      if (data.user?.role === "admin") {
+      const roles = Array.isArray(data.user?.roles)
+        ? data.user.roles
+        : [data.user?.role];
+      if (roles.includes("admin")) {
         router.push("/admin");
-      } else if (data.user?.role === "evaluator") {
+      } else if (roles.includes("employee") && roles.includes("evaluator")) {
+        router.push("/employee");
+      } else if (roles.includes("evaluator")) {
         router.push("/evaluations");
       } else {
         router.push("/employee");

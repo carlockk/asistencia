@@ -58,7 +58,8 @@ export async function GET(req) {
   try {
     await connectDB();
     const payload = await requireAuth();
-    if (payload.role !== "admin" && payload.role !== "evaluator") {
+    const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+    if (!roles.includes("admin") && !roles.includes("evaluator")) {
       throw new Error("FORBIDDEN");
     }
     const { searchParams } = new URL(req.url);
@@ -70,8 +71,7 @@ export async function GET(req) {
     const q = (searchParams.get("q") || "").toLowerCase().trim();
     const from = parseDate(searchParams.get("from"));
     const to = parseDate(searchParams.get("to"));
-    const filter =
-      payload.role === "admin" ? {} : { assignedTo: payload.id };
+    const filter = roles.includes("admin") ? {} : { assignedTo: payload.id };
 
     let evaluations = await Evaluation.find(filter)
       .sort({ createdAt: -1 })
@@ -119,7 +119,8 @@ export async function POST(req) {
   try {
     await connectDB();
     const payload = await requireAuth();
-    if (payload.role !== "admin") throw new Error("FORBIDDEN");
+    const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+    if (!roles.includes("admin")) throw new Error("FORBIDDEN");
 
     const body = await req.json();
     const checklistId = body.checklistId;

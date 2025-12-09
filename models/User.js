@@ -24,6 +24,5 @@ const UserSchema = new Schema(
   { timestamps: true }
 );
 
-// Forzar recompilar el modelo en dev si cambio el schema (evita enums antiguos)
 delete mongoose.models.User;
 export default mongoose.model("User", UserSchema);

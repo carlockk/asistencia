@@ -24,6 +24,7 @@ export function TreeEditor({
   onPromote,
   onDemote,
   onToggleCheck,
+  onChangeOptions,
   enableReorder = false
 }) {
   return (
@@ -50,6 +51,23 @@ export function TreeEditor({
               />
               Tiene check
             </label>
+            {item.hasCheck !== false && (
+              <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={Array.isArray(item.options) && item.options.length > 0}
+                  onChange={(e) =>
+                    onChangeOptions(
+                      item.id,
+                      e.target.checked
+                        ? item.options?.map((opt) => opt.label).join("\n") || ""
+                        : ""
+                    )
+                  }
+                />
+                Opciones personalizadas
+              </div>
+            )}
             <div className="flex items-center gap-1">
               {enableReorder && (
                 <>
@@ -100,10 +118,22 @@ export function TreeEditor({
                 onPromote={onPromote}
                 onDemote={onDemote}
                 onToggleCheck={onToggleCheck}
+                onChangeOptions={onChangeOptions}
                 enableReorder={enableReorder}
               />
             </div>
           ) : null}
+          {item.hasCheck !== false && Array.isArray(item.options) && item.options.length > 0 && (
+            <div className="mt-2">
+              <label className="label text-[11px]">Opciones (una por línea)</label>
+              <textarea
+                className="input text-[12px] min-h-[70px]"
+                value={item.options.map((opt) => opt.label).join("\n")}
+                onChange={(e) => onChangeOptions(item.id, e.target.value)}
+                placeholder={"Siempre\nCasi siempre\nA veces\nNunca"}
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>

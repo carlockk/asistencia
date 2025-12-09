@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../components/TopBar";
-import { ratingOptions, collectCheckableIds } from "./utils";
+import { ratingOptions, collectCheckableIds, optionsForItem } from "./utils";
 import { useAvatar } from "./useAvatar";
 
 export default function EvaluatorEvaluationsClient({ evaluatorName }) {
@@ -123,7 +123,7 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
               <p className="text-[11px] text-slate-500 mb-1">Solo título, sin check.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {ratingOptions.map((opt) => (
+                {optionsForItem(item).map((opt) => (
                   <label
                     key={opt.value}
                     className={`px-3 py-1 rounded-full border text-[12px] cursor-pointer ${

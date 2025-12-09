@@ -14,13 +14,12 @@ export default async function EmployeePage() {
   } catch {
     redirect("/");
   }
-  if (payload.role !== "employee") {
-    if (payload.role === "admin") {
-      redirect("/admin");
-    }
-    if (payload.role === "evaluator") {
-      redirect("/evaluations");
-    }
+  const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+  if (roles.includes("admin")) {
+    redirect("/admin");
+  }
+  if (!roles.includes("employee")) {
+    if (roles.includes("evaluator")) redirect("/evaluations");
     redirect("/");
   }
 

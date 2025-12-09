@@ -40,7 +40,9 @@ export async function POST(req) {
       user: {
         id: user._id.toString(),
         username: user.username,
-        role: user.role,
+        roles: Array.isArray(user.roles) && user.roles.length
+          ? user.roles
+          : [user.role || "employee"],
         firstName: user.firstName,
         lastName: user.lastName
       }

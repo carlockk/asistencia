@@ -14,8 +14,11 @@ export default async function ProfilePage() {
   } catch {
     redirect("/");
   }
-  if (payload.role !== "employee") {
-    redirect("/admin");
+  const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+  if (!roles.includes("employee")) {
+    if (roles.includes("admin")) redirect("/admin");
+    if (roles.includes("evaluator")) redirect("/evaluations");
+    redirect("/");
   }
 
   return (

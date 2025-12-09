@@ -33,7 +33,7 @@ export default function AdminDashboardClient({ adminName }) {
   const baseForm = {
     username: "",
     password: "",
-    role: "employee",
+    roles: ["employee"],
     firstName: "",
     lastName: "",
     docType: "RUT",
@@ -55,6 +55,7 @@ export default function AdminDashboardClient({ adminName }) {
   function normalizeUser(u) {
     return {
       ...u,
+      roles: Array.isArray(u?.roles) && u.roles.length ? u.roles : [u.role || "employee"],
       avatarUrl: u?.avatarUrl || u?.avatar_url || ""
     };
   }
@@ -357,10 +358,10 @@ export default function AdminDashboardClient({ adminName }) {
         <div className="card p-5 md:p-6 space-y-4">
           <div className="flex flex-col gap-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div className="flex gap-2 text-xs flex-wrap items-end">
-                <button
-                  className={`px-3 py-2 rounded-t-md border-b-2 transition ${
-                    roleFilter === "employee"
+            <div className="flex gap-2 text-xs flex-wrap items-end">
+              <button
+                className={`px-3 py-2 rounded-t-md border-b-2 transition ${
+                  roleFilter === "employee"
                       ? "border-banco-rojo text-slate-800 bg-white shadow-soft"
                       : "border-transparent text-slate-500 bg-white/60"
                   }`}
@@ -781,19 +782,33 @@ export default function AdminDashboardClient({ adminName }) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center pt-1">
-                  <div>
-                    <label className="label">Rol</label>
-                    <select
-                      className="input"
-                      value={form.role}
-                      onChange={(e) =>
-                        setForm({ ...form, role: e.target.value })
-                      }
-                    >
-                      <option value="employee">Empleado</option>
-                      <option value="admin">Administrador</option>
-                      <option value="evaluator">Evaluador</option>
-                    </select>
+                  <div className="space-y-1">
+                    <label className="label">Roles</label>
+                    <div className="flex flex-wrap gap-2 text-[12px]">
+                      {["employee", "admin", "evaluator"].map((r) => (
+                        <label key={r} className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={form.roles.includes(r)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setForm((prev) => {
+                                const set = new Set(prev.roles);
+                                if (checked) set.add(r);
+                                else set.delete(r);
+                                const next = Array.from(set);
+                                return { ...prev, roles: next.length ? next : ["employee"] };
+                              });
+                            }}
+                          />
+                          {r === "employee"
+                            ? "Empleado"
+                            : r === "admin"
+                            ? "Administrador"
+                            : "Evaluador"}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex justify-end">
                     <button
@@ -879,18 +894,32 @@ export default function AdminDashboardClient({ adminName }) {
                 </div>
 
                 <div>
-                  <label className="label">Rol</label>
-                  <select
-                    className="input"
-                    value={editForm.role}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, role: e.target.value })
-                    }
-                  >
-                    <option value="employee">Empleado</option>
-                    <option value="admin">Administrador</option>
-                    <option value="evaluator">Evaluador</option>
-                  </select>
+                  <label className="label">Roles</label>
+                  <div className="flex flex-wrap gap-2 text-[12px]">
+                    {["employee", "admin", "evaluator"].map((r) => (
+                      <label key={r} className="flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={editForm.roles.includes(r)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setEditForm((prev) => {
+                              const set = new Set(prev.roles);
+                              if (checked) set.add(r);
+                              else set.delete(r);
+                              const next = Array.from(set);
+                              return { ...prev, roles: next.length ? next : ["employee"] };
+                            });
+                          }}
+                        />
+                        {r === "employee"
+                          ? "Empleado"
+                          : r === "admin"
+                          ? "Administrador"
+                          : "Evaluador"}
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

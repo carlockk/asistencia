@@ -22,6 +22,7 @@ export default function EmployeeDashboardClient({ employeeName }) {
   const [type, setType] = useState("info");
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [hasEvaluator, setHasEvaluator] = useState(false);
 
   useEffect(() => {
     async function loadAvatar() {
@@ -29,8 +30,12 @@ export default function EmployeeDashboardClient({ employeeName }) {
         const res = await fetch("/api/me");
         if (!res.ok) return;
         const data = await res.json();
-        if (data?.user?.avatarUrl) {
-          setAvatarUrl(data.user.avatarUrl);
+        if (data?.user) {
+          if (data.user.avatarUrl) setAvatarUrl(data.user.avatarUrl);
+          const roles = Array.isArray(data.user.roles)
+            ? data.user.roles
+            : [data.user.role];
+          if (roles.includes("evaluator")) setHasEvaluator(true);
         }
       } catch {
         // ignorar errores de avatar
@@ -80,13 +85,24 @@ export default function EmployeeDashboardClient({ employeeName }) {
         subtitle="Panel empleado"
         avatarUrl={avatarUrl}
         actions={
-          <button
-            className="btn-secondary text-xs px-3 py-1.5"
-            type="button"
-            onClick={goProfile}
-          >
-            Mi perfil
-          </button>
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary text-xs px-3 py-1.5"
+              type="button"
+              onClick={goProfile}
+            >
+              Mi perfil
+            </button>
+            {hasEvaluator && (
+              <button
+                className="btn-secondary text-xs px-3 py-1.5"
+                type="button"
+                onClick={() => router.push("/evaluations")}
+              >
+                Evaluaciones
+              </button>
+            )}
+          </div>
         }
         onLogout={handleLogout}
       />

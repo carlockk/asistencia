@@ -8,8 +8,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+    const token = cookies().get("token")?.value;
     if (!token) {
       return NextResponse.json({ message: "No autenticado" }, { status: 401 });
     }
@@ -46,8 +45,7 @@ export async function GET() {
 
 export async function PUT(req) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+    const token = cookies().get("token")?.value;
     if (!token) {
       return NextResponse.json({ message: "No autenticado" }, { status: 401 });
     }

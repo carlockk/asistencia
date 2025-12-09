@@ -11,7 +11,8 @@ async function requireRole(allowRoles) {
   const token = cookieStore.get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
   const payload = verifyToken(token);
-  if (!allowRoles.includes(payload.role)) throw new Error("FORBIDDEN");
+  const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+  if (!roles.some((r) => allowRoles.includes(r))) throw new Error("FORBIDDEN");
   return payload;
 }
 
@@ -28,10 +29,21 @@ function sanitizeItems(items) {
     .map((item) => {
       const title = (item?.title || "").toString().trim();
       if (!title) return null;
+      const options = Array.isArray(item?.options)
+        ? item.options
+            .map((opt) => {
+              const label = (opt?.label || "").toString().trim();
+              const value = (opt?.value || "").toString().trim();
+              if (!label) return null;
+              return { label, value: value || label.toLowerCase().replace(/\s+/g, "_") };
+            })
+            .filter(Boolean)
+        : [];
       return {
         id: item.id || makeId(),
         title,
         hasCheck: item?.hasCheck === false ? false : true,
+        options,
         children: sanitizeItems(item.children || [])
       };
     })

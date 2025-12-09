@@ -13,8 +13,10 @@ export default function AdminUserEditPage({ params }) {
   } catch {
     redirect("/");
   }
-  if (payload.role !== "admin") {
-    redirect("/employee");
+  const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+  if (!roles.includes("admin")) {
+    if (roles.includes("employee")) redirect("/employee");
+    redirect("/");
   }
 
   return (

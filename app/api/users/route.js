@@ -8,8 +8,7 @@ import bcrypt from "bcryptjs";
 export const runtime = "nodejs";
 
 async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = cookies().get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
   const payload = verifyToken(token);
   if (payload.role !== "admin") throw new Error("FORBIDDEN");
@@ -44,7 +43,6 @@ export async function GET(req) {
         email: u.email,
         hourlyRate: u.hourlyRate,
         observation: u.observation,
-        // 👇 aquí devolvemos el avatar
         avatarUrl: u.avatarUrl || ""
       }))
     });
@@ -81,7 +79,6 @@ export async function POST(req) {
       email,
       hourlyRate,
       observation,
-      // 👇 lo leemos del body porque tu formulario lo envía
       avatarUrl
     } = body;
 
@@ -105,12 +102,7 @@ export async function POST(req) {
     const user = await User.create({
       username,
       passwordHash,
-      role:
-        role === "admin"
-          ? "admin"
-          : role === "evaluator"
-          ? "evaluator"
-          : "employee",
+      role: role === "admin" ? "admin" : role === "evaluator" ? "evaluator" : "employee",
       firstName,
       lastName,
       docType,
@@ -121,7 +113,6 @@ export async function POST(req) {
       email,
       hourlyRate: Number(hourlyRate) || 0,
       observation,
-      // 👇 lo guardamos en la BD
       avatarUrl
     });
 

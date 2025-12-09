@@ -168,6 +168,29 @@ export default function AdminEvaluationsClient({ adminName }) {
       if (!ctx) return items;
       const current = ctx.list[ctx.index];
       current.hasCheck = current.hasCheck === false ? true : false;
+      if (current.hasCheck === false) {
+        current.options = [];
+      }
+      return items;
+    });
+  }
+
+  function changeOptions(id, text) {
+    updateChecklistItems((items) => {
+      const ctx = findContext(items, id);
+      if (!ctx) return items;
+      const lines = text
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (lines.length === 0) {
+        ctx.list[ctx.index].options = [];
+      } else {
+        ctx.list[ctx.index].options = lines.map((label) => ({
+          label,
+          value: label.toLowerCase().replace(/\s+/g, "_")
+        }));
+      }
       return items;
     });
   }
@@ -405,6 +428,7 @@ export default function AdminEvaluationsClient({ adminName }) {
                   onPromote={promote}
                   onDemote={demote}
                   onToggleCheck={toggleCheck}
+                  onChangeOptions={changeOptions}
                   enableReorder
                 />
               )}
@@ -423,23 +447,23 @@ export default function AdminEvaluationsClient({ adminName }) {
         </div>
 
         <div className="card p-5 md:p-6 space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="text-xs text-slate-500">Asignar evaluaciones</p>
-              <h2 className="text-lg font-semibold text-slate-800">
-                Envia a un evaluador
-              </h2>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-xs text-slate-500">Asignar evaluaciones</p>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  Envia a un evaluador
+                </h2>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary text-[12px]"
+                  onClick={() => window.open("/evaluations/list", "_blank")}
+                >
+                  Ver evaluaciones
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="btn-secondary text-[12px]"
-                onClick={() => router.push("/evaluations/list")}
-              >
-                Ver evaluaciones
-              </button>
-            </div>
-          </div>
 
           <form className="space-y-3 text-sm" onSubmit={handleAssign}>
             <div>

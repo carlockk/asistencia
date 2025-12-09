@@ -17,8 +17,9 @@ export default async function EvaluationsPage() {
     redirect("/");
   }
 
-  if (payload.role !== "admin" && payload.role !== "evaluator") {
-    if (payload.role === "employee") {
+  const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
+  if (!roles.includes("admin") && !roles.includes("evaluator")) {
+    if (roles.includes("employee")) {
       redirect("/employee");
     }
     redirect("/admin");
@@ -33,7 +34,10 @@ export default async function EvaluationsPage() {
           </div>
         }
       >
-        <EvaluationsClient role={payload.role} userName={payload.name || "Usuario"} />
+        <EvaluationsClient
+          roles={roles}
+          userName={payload.name || "Usuario"}
+        />
       </Suspense>
     </div>
   );
