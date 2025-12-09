@@ -17,6 +17,9 @@ export default async function VacationsPage() {
     redirect("/");
   }
   if (payload.role !== "admin") {
+    if (payload.role === "evaluator") {
+      redirect("/evaluations");
+    }
     redirect("/employee");
   }
 

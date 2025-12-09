@@ -6,7 +6,8 @@ import Vacation from "@/models/Vacation";
 import User from "@/models/User";
 
 async function requireAdmin() {
-  const token = cookies().get("token")?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
   const payload = verifyToken(token);
   if (payload.role !== "admin") throw new Error("FORBIDDEN");

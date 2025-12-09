@@ -229,6 +229,13 @@ export default function VacationsClient({ adminName }) {
             >
               Vacaciones
             </span>
+            <button
+              type="button"
+              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
+              onClick={() => router.push("/evaluations")}
+            >
+              Evaluaciones
+            </button>
           </div>
         }
         onLogout={async () => {

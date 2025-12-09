@@ -17,6 +17,9 @@ export default async function AdminPage() {
     redirect("/");
   }
   if (payload.role !== "admin") {
+    if (payload.role === "evaluator") {
+      redirect("/evaluations");
+    }
     redirect("/employee");
   }
 

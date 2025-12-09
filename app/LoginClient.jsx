@@ -27,6 +27,8 @@ export default function LoginClient() {
 
       if (data.user?.role === "admin") {
         router.push("/admin");
+      } else if (data.user?.role === "evaluator") {
+        router.push("/evaluations");
       } else {
         router.push("/employee");
       }
@@ -80,6 +82,9 @@ export default function LoginClient() {
             </span>
             <span className="px-2 py-1 rounded-full text-slate-500">
               Empleado
+            </span>
+            <span className="px-2 py-1 rounded-full text-slate-500">
+              Evaluador
             </span>
           </div>
         </div>

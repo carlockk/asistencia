@@ -6,7 +6,7 @@ const UserSchema = new Schema(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["admin", "employee"],
+      enum: ["admin", "employee", "evaluator"],
       default: "employee"
     },
     firstName: String,
@@ -24,4 +24,6 @@ const UserSchema = new Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.User || mongoose.model("User", UserSchema);
+// Forzar recompilar el modelo en dev si cambio el schema (evita enums antiguos)
+delete mongoose.models.User;
+export default mongoose.model("User", UserSchema);

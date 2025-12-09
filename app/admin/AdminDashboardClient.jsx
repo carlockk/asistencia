@@ -193,6 +193,21 @@ export default function AdminDashboardClient({ adminName }) {
     router.push("/");
   }
 
+  async function handleDelete(userId) {
+    const ok = window.confirm(
+      "¿Eliminar este usuario? Esta acción no se puede deshacer."
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/users/${userId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error eliminando usuario");
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+    } catch (err) {
+      setListError(err.message);
+    }
+  }
+
   async function handleAvatarFileChange(e, setter, mode = "create") {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -327,6 +342,13 @@ export default function AdminDashboardClient({ adminName }) {
             >
               Vacaciones
             </button>
+            <button
+              type="button"
+              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
+              onClick={() => router.push("/evaluations")}
+            >
+              Evaluaciones
+            </button>
           </div>
         }
       />
@@ -356,10 +378,20 @@ export default function AdminDashboardClient({ adminName }) {
                 >
                   Admins
                 </button>
+                <button
+                  className={`px-3 py-2 rounded-t-md border-b-2 transition ${
+                    roleFilter === "evaluator"
+                      ? "border-banco-rojo text-slate-800 bg-white shadow-soft"
+                      : "border-transparent text-slate-500 bg-white/60"
+                  }`}
+                  onClick={() => setRoleFilter("evaluator")}
+                >
+                  Evaluadores
+                </button>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-[11px] text-slate-500">
-                  Puedes crear empleados y administradores. Luego podran iniciar
+                  Puedes crear empleados, administradores y evaluadores. Luego podran iniciar
                   sesion con su usuario y contrasena.
                 </p>
                 <button
@@ -400,6 +432,7 @@ export default function AdminDashboardClient({ adminName }) {
                   <th className="px-3 py-2 text-left">Valor hora</th>
                   <th className="px-3 py-2 text-left">Obs.</th>
                   <th className="px-3 py-2 text-left">Editar</th>
+                  <th className="px-3 py-2 text-left">Eliminar</th>
                   {roleFilter === "employee" && (
                     <th className="px-3 py-2 text-left">Asistencia</th>
                   )}
@@ -409,7 +442,7 @@ export default function AdminDashboardClient({ adminName }) {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={roleFilter === "employee" ? 10 : 9}
+                      colSpan={roleFilter === "employee" ? 11 : 10}
                       className="px-3 py-4 text-center text-slate-400"
                     >
                       Cargando...
@@ -418,7 +451,7 @@ export default function AdminDashboardClient({ adminName }) {
                 ) : paginatedUsers.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={roleFilter === "employee" ? 10 : 9}
+                      colSpan={roleFilter === "employee" ? 11 : 10}
                       className="px-3 py-4 text-center text-slate-400"
                     >
                       No hay usuarios para mostrar.
@@ -482,10 +515,18 @@ export default function AdminDashboardClient({ adminName }) {
                       </td>
                       <td className="px-3 py-2">
                         <button
-                          className="btn-secondary text-[11px] px-3 py-1"
+                          className="btn-secondary text-[11px] px-2.5 py-1"
                           onClick={() => loadUserForEdit(u.id)}
                         >
                           Editar
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          className="btn-secondary text-[11px] px-2.5 py-1 text-rose-700 border-rose-200 hover:text-rose-800 hover:border-rose-300"
+                          onClick={() => handleDelete(u.id)}
+                        >
+                          Eliminar
                         </button>
                       </td>
                       {roleFilter === "employee" && (
@@ -751,6 +792,7 @@ export default function AdminDashboardClient({ adminName }) {
                     >
                       <option value="employee">Empleado</option>
                       <option value="admin">Administrador</option>
+                      <option value="evaluator">Evaluador</option>
                     </select>
                   </div>
                   <div className="flex justify-end">
@@ -834,6 +876,21 @@ export default function AdminDashboardClient({ adminName }) {
                       placeholder="Dejar vacio para mantener"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="label">Rol</label>
+                  <select
+                    className="input"
+                    value={editForm.role}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, role: e.target.value })
+                    }
+                  >
+                    <option value="employee">Empleado</option>
+                    <option value="admin">Administrador</option>
+                    <option value="evaluator">Evaluador</option>
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

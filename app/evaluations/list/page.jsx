@@ -2,9 +2,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { verifyToken } from "@/lib/auth";
-import EmployeeDashboardClient from "./EmployeeDashboardClient";
+import EvaluationListClient from "../EvaluationListClient";
 
-export default async function EmployeePage() {
+export default async function EvaluationListPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   if (!token) redirect("/");
@@ -14,14 +14,11 @@ export default async function EmployeePage() {
   } catch {
     redirect("/");
   }
-  if (payload.role !== "employee") {
-    if (payload.role === "admin") {
-      redirect("/admin");
-    }
+  if (payload.role !== "admin") {
     if (payload.role === "evaluator") {
       redirect("/evaluations");
     }
-    redirect("/");
+    redirect("/employee");
   }
 
   return (
@@ -29,11 +26,11 @@ export default async function EmployeePage() {
       <Suspense
         fallback={
           <div className="card p-6 text-sm text-slate-600">
-            Cargando panel de empleado...
+            Cargando evaluaciones...
           </div>
         }
       >
-        <EmployeeDashboardClient employeeName={payload.name || "Empleado"} />
+        <EvaluationListClient adminName={payload.name || "Admin"} />
       </Suspense>
     </div>
   );

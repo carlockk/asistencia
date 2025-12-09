@@ -1,5 +1,5 @@
 export const config = {
-  matcher: ["/admin/:path*", "/employee/:path*"]
+  matcher: ["/admin/:path*", "/employee/:path*", "/evaluations/:path*"]
 };
 
 // La lógica principal de protección se maneja en los Server Components
