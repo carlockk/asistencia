@@ -2,16 +2,28 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
-import { verifyToken } from "@/lib/auth";
+import {
+  ALLOWED_ROLES,
+  getRolesFromUser,
+  normalizeRoles,
+  pickPrimaryRole,
+  verifyToken
+} from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 
+function rolesFromPayload(payload) {
+  return Array.isArray(payload.roles) ? payload.roles : [payload.role];
+}
+
 async function requireAdmin() {
-  const token = cookies().get("token")?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
   const payload = verifyToken(token);
-  if (payload.role !== "admin") throw new Error("FORBIDDEN");
+  const roles = rolesFromPayload(payload);
+  if (!roles.includes("admin")) throw new Error("FORBIDDEN");
   return payload;
 }
 
@@ -24,7 +36,9 @@ export async function GET(req) {
     const role = searchParams.get("role");
 
     const filter = {};
-    if (role) filter.role = role;
+    if (role && ALLOWED_ROLES.includes(role)) {
+      filter.$or = [{ role }, { roles: role }];
+    }
 
     const users = await User.find(filter).sort({ createdAt: -1 });
 
@@ -33,6 +47,7 @@ export async function GET(req) {
         id: u._id.toString(),
         username: u.username,
         role: u.role,
+        roles: getRolesFromUser(u),
         firstName: u.firstName,
         lastName: u.lastName,
         docType: u.docType,
@@ -68,6 +83,7 @@ export async function POST(req) {
     const {
       username,
       password,
+      roles: rawRoles,
       role,
       firstName,
       lastName,
@@ -97,12 +113,18 @@ export async function POST(req) {
       );
     }
 
+    const roles = normalizeRoles(
+      rawRoles !== undefined ? rawRoles : role,
+      "employee"
+    );
+    const primaryRole = pickPrimaryRole(roles);
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       username,
       passwordHash,
-      role: role === "admin" ? "admin" : role === "evaluator" ? "evaluator" : "employee",
+      role: primaryRole,
+      roles,
       firstName,
       lastName,
       docType,
@@ -122,6 +144,7 @@ export async function POST(req) {
           id: user._id.toString(),
           username: user.username,
           role: user.role,
+          roles: getRolesFromUser(user),
           avatarUrl: user.avatarUrl || ""
         }
       },

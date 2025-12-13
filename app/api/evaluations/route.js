@@ -124,10 +124,12 @@ export async function POST(req) {
 
     const body = await req.json();
     const checklistId = body.checklistId;
-    const evaluatorId = body.evaluatorId;
+    const evaluatorIds = Array.isArray(body.evaluatorIds)
+      ? body.evaluatorIds.filter(Boolean)
+      : [];
     const notes = (body.notes || "").trim();
 
-    if (!checklistId || !evaluatorId) {
+    if (!checklistId || evaluatorIds.length === 0) {
       return NextResponse.json(
         { message: "Checklist y evaluador son obligatorios" },
         { status: 400 }
@@ -142,28 +144,32 @@ export async function POST(req) {
       );
     }
 
-    const evaluator = await User.findById(evaluatorId);
-    if (!evaluator || evaluator.role !== "evaluator") {
-      return NextResponse.json(
-        { message: "El usuario elegido no es un evaluador valido" },
-        { status: 400 }
-      );
+    const created = [];
+    for (const evaluatorId of evaluatorIds) {
+      const evaluator = await User.findById(evaluatorId);
+      const evaluatorRoles = Array.isArray(evaluator?.roles) && evaluator.roles.length
+        ? evaluator.roles
+        : [evaluator?.role];
+      if (!evaluator || !evaluatorRoles.includes("evaluator")) {
+        return NextResponse.json(
+          { message: "El usuario elegido no es un evaluador valido" },
+          { status: 400 }
+        );
+      }
+
+      const evaluation = await Evaluation.create({
+        checklist: checklistId,
+        assignedTo: evaluatorId,
+        assignedBy: payload.id,
+        notes
+      });
+
+      await evaluation.populate("checklist", "title");
+      await evaluation.populate("assignedTo", "firstName lastName username role");
+      created.push(normalizeEvaluation(evaluation));
     }
 
-    const evaluation = await Evaluation.create({
-      checklist: checklistId,
-      assignedTo: evaluatorId,
-      assignedBy: payload.id,
-      notes
-    });
-
-    await evaluation.populate("checklist", "title");
-    await evaluation.populate("assignedTo", "firstName lastName username role");
-
-    return NextResponse.json(
-      { evaluation: normalizeEvaluation(evaluation) },
-      { status: 201 }
-    );
+    return NextResponse.json({ evaluations: created }, { status: 201 });
   } catch (err) {
     console.error("POST /api/evaluations", err);
     if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {

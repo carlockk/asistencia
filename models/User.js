@@ -9,6 +9,11 @@ const UserSchema = new Schema(
       enum: ["admin", "employee", "evaluator"],
       default: "employee"
     },
+    roles: {
+      type: [String],
+      enum: ["admin", "employee", "evaluator"],
+      default: ["employee"]
+    },
     firstName: String,
     lastName: String,
     docType: { type: String, default: "RUT" },

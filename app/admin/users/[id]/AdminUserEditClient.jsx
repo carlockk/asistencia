@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 const emptyForm = {
   username: "",
   password: "",
-  role: "employee",
+  roles: ["employee"],
   firstName: "",
   lastName: "",
   docType: "RUT",
@@ -37,10 +37,15 @@ export default function AdminUserEditClient({ userId }) {
         const res = await fetch(`/api/users/${userId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Error cargando usuario");
+        const roles =
+          Array.isArray(data.user.roles) && data.user.roles.length
+            ? data.user.roles
+            : [data.user.role || "employee"];
+
         setForm({
           username: data.user.username || "",
           password: "",
-          role: data.user.role || "employee",
+          roles,
           firstName: data.user.firstName || "",
           lastName: data.user.lastName || "",
           docType: data.user.docType || "RUT",
@@ -74,6 +79,10 @@ export default function AdminUserEditClient({ userId }) {
       }
       payload.hourlyRate =
         payload.hourlyRate === "" ? 0 : Number(payload.hourlyRate);
+      // Asegura que siempre exista al menos un rol (evita dejarlo vacio)
+      if (!Array.isArray(payload.roles) || payload.roles.length === 0) {
+        payload.roles = ["employee"];
+      }
 
       const res = await fetch(`/api/users/${userId}`, {
         method: "PUT",
@@ -297,17 +306,33 @@ export default function AdminUserEditClient({ userId }) {
                     />
                   </div>
                   <div>
-                    <label className="label">Rol</label>
-                    <select
-                      className="input"
-                      value={form.role}
-                      onChange={(e) =>
-                        setForm({ ...form, role: e.target.value })
-                      }
-                    >
-                      <option value="employee">Empleado</option>
-                      <option value="admin">Administrador</option>
-                    </select>
+                    <label className="label">Roles</label>
+                    <div className="flex flex-wrap gap-2 text-[12px]">
+                      {["employee", "evaluator", "admin"].map((r) => (
+                        <label key={r} className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={form.roles.includes(r)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              const next = new Set(form.roles);
+                              if (checked) next.add(r);
+                              else next.delete(r);
+                              const list = Array.from(next);
+                              setForm({
+                                ...form,
+                                roles: list.length ? list : ["employee"]
+                              });
+                            }}
+                          />
+                          {r === "employee"
+                            ? "Empleado"
+                            : r === "admin"
+                            ? "Administrador"
+                            : "Evaluador"}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

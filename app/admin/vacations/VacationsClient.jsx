@@ -37,6 +37,23 @@ function calcDays(startDate, endDate) {
   return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
 }
 
+function calcRemainingDays(startDate, endDate) {
+  const today = new Date();
+  const start = parseYMD(startDate);
+  const end = parseYMD(endDate);
+  if (!start || !end || isNaN(start) || isNaN(end)) return 0;
+  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  const todayUTC = Date.UTC(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+  const diff = endUTC - todayUTC;
+  // Si ya terminó, devuelve 0
+  if (diff < 0) return 0;
+  return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
+}
+
 export default function VacationsClient({ adminName }) {
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -402,12 +419,13 @@ export default function VacationsClient({ adminName }) {
 
         <div className="overflow-auto border border-slate-100 rounded-2xl bg-white/70">
           <table className="min-w-full text-xs">
-            <thead className="bg-pastel-lila/60">
+                        <thead className="bg-pastel-lila/60">
               <tr className="text-[11px] text-slate-600">
                 <th className="px-3 py-2 text-left">Empleado</th>
                 <th className="px-3 py-2 text-left">Inicio</th>
                 <th className="px-3 py-2 text-left">Fin</th>
-                <th className="px-3 py-2 text-left">Días</th>
+                <th className="px-3 py-2 text-left">Dias</th>
+                <th className="px-3 py-2 text-left">Dias restantes</th>
                 <th className="px-3 py-2 text-left">Estado</th>
                 <th className="px-3 py-2 text-left">Nota</th>
                 <th className="px-3 py-2 text-left">Acciones</th>
@@ -417,7 +435,7 @@ export default function VacationsClient({ adminName }) {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-3 py-4 text-center text-slate-400"
                   >
                     Cargando...
@@ -426,7 +444,7 @@ export default function VacationsClient({ adminName }) {
               ) : filteredVacations.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-3 py-4 text-center text-slate-400"
                   >
                     No hay registros.
@@ -448,7 +466,10 @@ export default function VacationsClient({ adminName }) {
                       {formatDate(v.endDate)}
                     </td>
                     <td className="px-3 py-2 text-[11px] text-slate-700">
-                      {calcDays(v.startDate, v.endDate)} días
+                      {calcDays(v.startDate, v.endDate)} dias
+                    </td>
+                    <td className="px-3 py-2 text-[11px] text-slate-700">
+                      {calcRemainingDays(v.startDate, v.endDate)} dias
                     </td>
                     <td className="px-3 py-2 text-[11px] text-slate-700">
                       {statusBadge(v.status)}
@@ -480,4 +501,3 @@ export default function VacationsClient({ adminName }) {
     </div>
   );
 }
-

@@ -21,7 +21,7 @@ export default function AdminEvaluationsClient({ adminName }) {
   const [evaluators, setEvaluators] = useState([]);
   const [assignForm, setAssignForm] = useState({
     checklistId: "",
-    evaluatorId: "",
+    evaluatorIds: [],
     notes: ""
   });
 
@@ -214,14 +214,13 @@ export default function AdminEvaluationsClient({ adminName }) {
       const res = await fetch("/api/users?role=evaluator");
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error cargando evaluadores");
-      setEvaluators(
-        (data.users || []).map((u) => ({
-          id: u.id,
-          name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username
-        }))
-      );
-      if (!assignForm.evaluatorId && data.users?.length) {
-        setAssignForm((prev) => ({ ...prev, evaluatorId: data.users[0].id }));
+      const mapped = (data.users || []).map((u) => ({
+        id: u.id,
+        name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username
+      }));
+      setEvaluators(mapped);
+      if (!assignForm.evaluatorIds.length && mapped.length) {
+        setAssignForm((prev) => ({ ...prev, evaluatorIds: [mapped[0].id] }));
       }
     } catch (err) {
       setError(err.message);
@@ -296,8 +295,17 @@ export default function AdminEvaluationsClient({ adminName }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error creando evaluacion");
-      setMessage("Evaluacion asignada al evaluador.");
-      setAssignForm((prev) => ({ ...prev, notes: "" }));
+      setMessage(
+        Array.isArray(data.evaluations) && data.evaluations.length > 1
+          ? "Evaluaciones asignadas a los evaluadores."
+          : "Evaluacion asignada al evaluador."
+      );
+      setAssignForm((prev) => ({
+        ...prev,
+        checklistId: "",
+        evaluatorIds: [],
+        notes: ""
+      }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -484,13 +492,17 @@ export default function AdminEvaluationsClient({ adminName }) {
               </select>
             </div>
             <div>
-              <label className="label">Evaluador</label>
+              <label className="label">Evaluadores (selecciona uno o varios)</label>
               <select
                 className="input"
-                value={assignForm.evaluatorId}
-                onChange={(e) =>
-                  setAssignForm({ ...assignForm, evaluatorId: e.target.value })
-                }
+                multiple
+                value={assignForm.evaluatorIds}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions).map(
+                    (o) => o.value
+                  );
+                  setAssignForm({ ...assignForm, evaluatorIds: selected });
+                }}
               >
                 {evaluators.length === 0 && <option value="">Sin usuarios</option>}
                 {evaluators.map((e) => (
@@ -499,6 +511,9 @@ export default function AdminEvaluationsClient({ adminName }) {
                   </option>
                 ))}
               </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Usa Ctrl/⌘ + click para seleccionar m£ltiples.
+              </p>
             </div>
             <div>
               <label className="label">Notas u objetivo</label>

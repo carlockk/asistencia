@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
-import { signToken } from "@/lib/auth";
+import { getRolesFromUser, pickPrimaryRole, signToken } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -34,15 +34,22 @@ export async function POST(req) {
       );
     }
 
-    const token = signToken(user);
+    const roles = getRolesFromUser(user);
+    const primaryRole = pickPrimaryRole(roles);
+    const token = signToken({
+      _id: user._id,
+      firstName: user.firstName,
+      username: user.username,
+      role: primaryRole,
+      roles
+    });
 
     const res = NextResponse.json({
       user: {
         id: user._id.toString(),
         username: user.username,
-        roles: Array.isArray(user.roles) && user.roles.length
-          ? user.roles
-          : [user.role || "employee"],
+        roles,
+        role: primaryRole,
         firstName: user.firstName,
         lastName: user.lastName
       }

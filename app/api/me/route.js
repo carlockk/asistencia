@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/auth";
+import { getRolesFromUser, pickPrimaryRole, verifyToken } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
@@ -8,7 +8,8 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const token = cookies().get("token")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
     if (!token) {
       return NextResponse.json({ message: "No autenticado" }, { status: 401 });
     }
@@ -20,11 +21,14 @@ export async function GET() {
       return NextResponse.json({ message: "No encontrado" }, { status: 404 });
     }
 
+    const roles = getRolesFromUser(user);
+
     return NextResponse.json({
       user: {
         id: user._id.toString(),
         username: user.username,
-        role: user.role,
+        role: pickPrimaryRole(roles),
+        roles,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -45,7 +49,8 @@ export async function GET() {
 
 export async function PUT(req) {
   try {
-    const token = cookies().get("token")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
     if (!token) {
       return NextResponse.json({ message: "No autenticado" }, { status: 401 });
     }

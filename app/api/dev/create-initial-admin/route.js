@@ -6,7 +6,9 @@ import User from "@/models/User";
 export async function GET() {
   await connectDB();
 
-  const existing = await User.findOne({ role: "admin" });
+  const existing = await User.findOne({
+    $or: [{ role: "admin" }, { roles: "admin" }]
+  });
   if (existing) {
     return NextResponse.json({
       message: "Ya existe al menos un admin, no se creó otro.",
@@ -24,6 +26,7 @@ export async function GET() {
     username: "admin",
     passwordHash,
     role: "admin",
+    roles: ["admin"],
     firstName: "Admin",
     lastName: "Principal",
     email: "admin@example.com"

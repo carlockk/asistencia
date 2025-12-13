@@ -5,8 +5,9 @@ import cloudinary, { assertCloudinaryConfigured } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 
-function requireAuth() {
-  const token = cookies().get("token")?.value;
+async function requireAuth() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
   try {
     verifyToken(token);
@@ -17,7 +18,7 @@ function requireAuth() {
 
 export async function POST(req) {
   try {
-    requireAuth();
+    await requireAuth();
     assertCloudinaryConfigured();
 
     const formData = await req.formData();
