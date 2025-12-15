@@ -16,6 +16,9 @@ export default function EvaluationListClient({ adminName }) {
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [checklistId, setChecklistId] = useState("");
+  const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [evaluations, setEvaluations] = useState([]);
   const [total, setTotal] = useState(0);
@@ -23,6 +26,58 @@ export default function EvaluationListClient({ adminName }) {
   const [error, setError] = useState("");
   const [viewEval, setViewEval] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [checklists, setChecklists] = useState([]);
+  const [summary, setSummary] = useState(null);
+
+  const topEmployees = useMemo(() => {
+    if (!summary?.byEmployee) return [];
+    return [...summary.byEmployee]
+      .map((item) => ({
+        ...item,
+        rate: item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0
+      }))
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, 3);
+  }, [summary]);
+
+  const topChecklists = useMemo(() => {
+    if (!summary?.byChecklist) return [];
+    return [...summary.byChecklist]
+      .map((item) => ({
+        ...item,
+        rate: item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0
+      }))
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, 3);
+  }, [summary]);
+
+  useEffect(() => {
+    async function loadMeta() {
+      try {
+        const [usersRes, checklistsRes] = await Promise.all([
+          fetch("/api/users?role=employee"),
+          fetch("/api/checklists")
+        ]);
+        if (usersRes.ok) {
+          const data = await usersRes.json();
+          const mapped = (data.users || []).map((u) => ({
+            id: u.id,
+            name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username
+          }));
+          setEmployees(mapped);
+        }
+        if (checklistsRes.ok) {
+          const data = await checklistsRes.json();
+          setChecklists(data.checklists || []);
+        }
+      } catch (err) {
+        // silencioso, se maneja en la carga principal
+        console.error("Error precargando filtros", err);
+      }
+    }
+    loadMeta();
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -38,6 +93,9 @@ export default function EvaluationListClient({ adminName }) {
         if (q.trim()) params.set("q", q.trim());
         if (from) params.set("from", from);
         if (to) params.set("to", to);
+        if (employeeId) params.set("employeeId", employeeId);
+        if (checklistId) params.set("checklistId", checklistId);
+        if (status) params.set("status", status);
         const res = await fetch(`/api/evaluations?${params.toString()}`, {
           signal: controller.signal
         });
@@ -45,16 +103,18 @@ export default function EvaluationListClient({ adminName }) {
         if (!res.ok) throw new Error(data.message || "Error cargando evaluaciones");
         setEvaluations(data.evaluations || []);
         setTotal(data.total || 0);
+        setSummary(data.summary || null);
       } catch (err) {
         if (err.name === "AbortError") return;
         setError(err.message);
+        setSummary(null);
       } finally {
         setLoading(false);
       }
     }
     load();
     return () => controller.abort();
-  }, [q, from, to, page]);
+  }, [q, from, to, page, employeeId, checklistId, status]);
 
   async function handleView(id) {
     setLoadingDetail(true);
@@ -82,6 +142,9 @@ export default function EvaluationListClient({ adminName }) {
     setQ("");
     setFrom("");
     setTo("");
+    setEmployeeId("");
+    setChecklistId("");
+    setStatus("");
     setPage(1);
   }
 
@@ -140,9 +203,9 @@ export default function EvaluationListClient({ adminName }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1.2fr,1fr,1fr] gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label className="label">Buscar (checklist, evaluador, notas)</label>
+            <label className="label">Buscar (checklist, evaluador, empleado, notas)</label>
             <input
               className="input"
               value={q}
@@ -177,6 +240,58 @@ export default function EvaluationListClient({ adminName }) {
               }}
             />
           </div>
+          <div>
+            <label className="label">Empleado</label>
+            <select
+              className="input"
+              value={employeeId}
+              onChange={(e) => {
+                setPage(1);
+                setEmployeeId(e.target.value);
+              }}
+            >
+              <option value="">Todos</option>
+              <option value="none">General (sin empleado)</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Checklist</label>
+            <select
+              className="input"
+              value={checklistId}
+              onChange={(e) => {
+                setPage(1);
+                setChecklistId(e.target.value);
+              }}
+            >
+              <option value="">Todos</option>
+              {checklists.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Estado</label>
+            <select
+              className="input"
+              value={status}
+              onChange={(e) => {
+                setPage(1);
+                setStatus(e.target.value);
+              }}
+            >
+              <option value="">Todos</option>
+              <option value="pending">Pendiente</option>
+              <option value="completed">Completada</option>
+            </select>
+          </div>
         </div>
 
         {error && (
@@ -185,12 +300,98 @@ export default function EvaluationListClient({ adminName }) {
           </p>
         )}
 
+        {summary && (
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+            <div className="border border-slate-100 rounded-2xl bg-white/70 p-4">
+              <p className="text-[11px] text-slate-500">Cumplimiento</p>
+              <div className="flex items-end justify-between">
+                <h3 className="text-2xl font-semibold text-slate-800">
+                  {summary.completionRate || 0}%
+                </h3>
+                <span className="text-[12px] text-slate-600">
+                  {summary.completed} / {summary.total} completadas
+                </span>
+              </div>
+              <div className="mt-3 h-3 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className="h-full bg-banco-rojo transition-all"
+                  style={{ width: `${summary.completionRate || 0}%` }}
+                />
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                Pendientes: {summary.pending || 0}
+              </div>
+            </div>
+            <div className="border border-slate-100 rounded-2xl bg-white/70 p-4">
+              <p className="text-[11px] text-slate-500 mb-1">Top empleados</p>
+              {topEmployees.length === 0 ? (
+                <p className="text-[12px] text-slate-500">Sin datos</p>
+              ) : (
+                <div className="space-y-2">
+                  {topEmployees.map((emp) => (
+                    <div key={emp.name} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-[12px] text-slate-800 font-semibold">
+                          {emp.name}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {emp.completed} / {emp.total} completadas
+                        </p>
+                      </div>
+                      <div className="w-28 h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500"
+                          style={{ width: `${emp.rate}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] text-slate-700 w-10 text-right">
+                        {emp.rate}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="border border-slate-100 rounded-2xl bg-white/70 p-4">
+              <p className="text-[11px] text-slate-500 mb-1">Top checklists</p>
+              {topChecklists.length === 0 ? (
+                <p className="text-[12px] text-slate-500">Sin datos</p>
+              ) : (
+                <div className="space-y-2">
+                  {topChecklists.map((chk) => (
+                    <div key={chk.name} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-[12px] text-slate-800 font-semibold">
+                          {chk.name}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {chk.completed} / {chk.total} completadas
+                        </p>
+                      </div>
+                      <div className="w-28 h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-500"
+                          style={{ width: `${chk.rate}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] text-slate-700 w-10 text-right">
+                        {chk.rate}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="overflow-auto border border-slate-100 rounded-2xl bg-white/70">
           <table className="min-w-full text-xs">
             <thead className="bg-pastel-lila/60">
               <tr className="text-[11px] text-slate-600">
                 <th className="px-3 py-2 text-left">Checklist</th>
                 <th className="px-3 py-2 text-left">Evaluador</th>
+                <th className="px-3 py-2 text-left">Empleado</th>
                 <th className="px-3 py-2 text-left">Estado</th>
                 <th className="px-3 py-2 text-left">Creada</th>
                 <th className="px-3 py-2 text-left">Enviada</th>
@@ -221,6 +422,9 @@ export default function EvaluationListClient({ adminName }) {
                     </td>
                     <td className="px-3 py-2 text-[11px] text-slate-700">
                       {ev.evaluatorName}
+                    </td>
+                    <td className="px-3 py-2 text-[11px] text-slate-700">
+                      {ev.employeeName || "General"}
                     </td>
                     <td className="px-3 py-2 text-[11px]">
                       {ev.status === "completed" ? (
@@ -310,6 +514,10 @@ export default function EvaluationListClient({ adminName }) {
             <div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-600 mt-2">
               <span>
                 Evaluador: <strong>{viewEval.evaluatorName}</strong>
+              </span>
+              <span>·</span>
+              <span>
+                Empleado: <strong>{viewEval.employeeName || "General"}</strong>
               </span>
               <span>·</span>
               <span>

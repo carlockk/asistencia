@@ -18,6 +18,8 @@ const EvaluationSchema = new Schema(
     checklist: { type: Schema.Types.ObjectId, ref: "Checklist", required: true },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", required: true },
     assignedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    // Empleado evaluado (opcional para checklists generales)
+    employee: { type: Schema.Types.ObjectId, ref: "User" },
     status: {
       type: String,
       enum: ["pending", "completed"],
@@ -34,6 +36,7 @@ const EvaluationSchema = new Schema(
 );
 
 EvaluationSchema.index({ assignedTo: 1, status: 1, createdAt: -1 });
+EvaluationSchema.index({ employee: 1, status: 1, createdAt: -1 });
 
 export default mongoose.models.Evaluation ||
   mongoose.model("Evaluation", EvaluationSchema);

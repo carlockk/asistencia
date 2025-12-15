@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import Evaluation from "@/models/Evaluation";
+import User from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -37,6 +38,11 @@ function normalizeDetail(ev) {
       ? `${ev.assignedTo.firstName || ""} ${ev.assignedTo.lastName || ""}`.trim() ||
         ev.assignedTo.username
       : "Evaluador",
+    employee: ev.employee?._id?.toString() || ev.employee?.toString?.(),
+    employeeName: ev.employee
+      ? `${ev.employee.firstName || ""} ${ev.employee.lastName || ""}`.trim() ||
+        ev.employee.username
+      : "General",
     responses: ev.responses || []
   };
 }
@@ -73,7 +79,8 @@ export async function GET(_req, { params }) {
     const payload = await requireAuth();
     const evaluation = await Evaluation.findById(params.id)
       .populate("checklist")
-      .populate("assignedTo", "firstName lastName username role");
+      .populate("assignedTo", "firstName lastName username role")
+      .populate("employee", "firstName lastName username role");
 
     if (!evaluation) {
       return NextResponse.json({ message: "No encontrado" }, { status: 404 });
@@ -122,6 +129,7 @@ export async function PUT(req, { params }) {
     }
 
     const responses = sanitizeResponses(body.responses || []);
+    const rawEmployeeId = (body.employeeId || "").toString().trim();
     const checkableIds = collectCheckableIds(
       evaluation.checklist?.items || [],
       []
@@ -156,6 +164,23 @@ export async function PUT(req, { params }) {
       }
     }
 
+    // Si se envía un empleado, validamos que exista y sea rol employee
+    if (rawEmployeeId) {
+      const employee = await User.findById(rawEmployeeId);
+      const employeeRoles = Array.isArray(employee?.roles) && employee.roles.length
+        ? employee.roles
+        : [employee?.role];
+      if (!employee || !employeeRoles.includes("employee")) {
+        return NextResponse.json(
+          { message: "El empleado seleccionado no es valido" },
+          { status: 400 }
+        );
+      }
+      evaluation.employee = employee._id;
+    } else {
+      evaluation.employee = undefined;
+    }
+
     evaluation.responses = responses;
     evaluation.status = "completed";
     evaluation.submittedAt = new Date();
@@ -163,7 +188,9 @@ export async function PUT(req, { params }) {
 
     await evaluation.save();
 
-    const populated = await evaluation.populate("checklist");
+    const populated = await evaluation
+      .populate("checklist")
+      .populate("employee", "firstName lastName username role");
 
     return NextResponse.json({
       evaluation: normalizeDetail(populated)

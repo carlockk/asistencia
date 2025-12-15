@@ -19,9 +19,12 @@ export default function AdminEvaluationsClient({ adminName }) {
   });
   const [checklists, setChecklists] = useState([]);
   const [evaluators, setEvaluators] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [assignForm, setAssignForm] = useState({
     checklistId: "",
     evaluatorIds: [],
+    employeeIds: [],
+    applyToAllEmployees: false,
     notes: ""
   });
 
@@ -227,9 +230,25 @@ export default function AdminEvaluationsClient({ adminName }) {
     }
   }
 
+  async function loadEmployees() {
+    try {
+      const res = await fetch("/api/users?role=employee");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error cargando empleados");
+      const mapped = (data.users || []).map((u) => ({
+        id: u.id,
+        name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username
+      }));
+      setEmployees(mapped);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   useEffect(() => {
     loadChecklists();
     loadEvaluators();
+    loadEmployees();
   }, []);
 
   async function handleCreateChecklist(e) {
@@ -288,10 +307,14 @@ export default function AdminEvaluationsClient({ adminName }) {
     setMessage("");
     setError("");
     try {
+      const payload = {
+        ...assignForm,
+        employeeIds: assignForm.applyToAllEmployees ? [] : assignForm.employeeIds
+      };
       const res = await fetch("/api/evaluations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(assignForm)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error creando evaluacion");
@@ -304,6 +327,8 @@ export default function AdminEvaluationsClient({ adminName }) {
         ...prev,
         checklistId: "",
         evaluatorIds: [],
+        employeeIds: [],
+        applyToAllEmployees: false,
         notes: ""
       }));
     } catch (err) {
@@ -513,6 +538,53 @@ export default function AdminEvaluationsClient({ adminName }) {
               </select>
               <p className="text-[11px] text-slate-500 mt-1">
                 Usa Ctrl/⌘ + click para seleccionar m£ltiples.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="label">Empleado evaluado (opcional)</label>
+              <div className="flex items-center gap-2 text-[12px] text-slate-600">
+                <input
+                  type="checkbox"
+                  className="accent-banco-rojo"
+                  checked={assignForm.applyToAllEmployees}
+                  onChange={(e) =>
+                    setAssignForm((prev) => ({
+                      ...prev,
+                      applyToAllEmployees: e.target.checked,
+                      employeeIds: e.target.checked ? [] : prev.employeeIds
+                    }))
+                  }
+                  id="apply-all-emps"
+                />
+                <label htmlFor="apply-all-emps" className="cursor-pointer select-none">
+                  Aplicar a todos los empleados actuales
+                </label>
+              </div>
+              <select
+                className="input"
+                multiple
+                disabled={assignForm.applyToAllEmployees}
+                value={assignForm.employeeIds}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions).map(
+                    (o) => o.value
+                  );
+                  setAssignForm({
+                    ...assignForm,
+                    employeeIds: selected,
+                    applyToAllEmployees: false
+                  });
+                }}
+              >
+                {employees.length === 0 && <option value="">Sin empleados</option>}
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500">
+                Si no seleccionas empleado ni marcas la casilla, el checklist queda general.
               </p>
             </div>
             <div>

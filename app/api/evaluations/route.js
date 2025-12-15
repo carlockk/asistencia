@@ -34,6 +34,10 @@ function normalizeEvaluation(ev) {
       ev.assignedTo?._id?.toString() ||
       (typeof ev.assignedTo === "string" ? ev.assignedTo : ev.assignedTo?.toString?.()),
     evaluatorName: formatUserName(ev.assignedTo),
+    employeeId:
+      ev.employee?._id?.toString() ||
+      (typeof ev.employee === "string" ? ev.employee : ev.employee?.toString?.()),
+    employeeName: ev.employee ? formatUserName(ev.employee) : "General",
     status: ev.status,
     submittedAt: ev.submittedAt,
     createdAt: ev.createdAt,
@@ -69,14 +73,32 @@ export async function GET(req) {
       Math.min(50, parseInt(searchParams.get("pageSize") || "10", 10))
     );
     const q = (searchParams.get("q") || "").toLowerCase().trim();
+    const employeeId = (searchParams.get("employeeId") || "").trim();
+    const checklistId = (searchParams.get("checklistId") || "").trim();
+    const status = (searchParams.get("status") || "").trim();
     const from = parseDate(searchParams.get("from"));
     const to = parseDate(searchParams.get("to"));
     const filter = roles.includes("admin") ? {} : { assignedTo: payload.id };
 
+    if (employeeId) {
+      if (employeeId === "none") {
+        filter.employee = null;
+      } else {
+        filter.employee = employeeId;
+      }
+    }
+    if (checklistId) {
+      filter.checklist = checklistId;
+    }
+    if (status && ["pending", "completed"].includes(status)) {
+      filter.status = status;
+    }
+
     let evaluations = await Evaluation.find(filter)
       .sort({ createdAt: -1 })
       .populate("checklist", "title")
-      .populate("assignedTo", "firstName lastName username role");
+      .populate("assignedTo", "firstName lastName username role")
+      .populate("employee", "firstName lastName username role");
 
     evaluations = evaluations.filter((ev) => {
       if (from || to) {
@@ -86,22 +108,55 @@ export async function GET(req) {
         if (to && created > endOfDay(to)) return false;
       }
       if (q) {
-        const text = `${ev.checklist?.title || ""} ${formatUserName(ev.assignedTo)} ${
-          ev.notes || ""
-        }`.toLowerCase();
+        const text = `${ev.checklist?.title || ""} ${formatUserName(ev.assignedTo)} ${formatUserName(
+          ev.employee
+        )} ${ev.notes || ""}`.toLowerCase();
         if (!text.includes(q)) return false;
       }
       return true;
     });
 
     const total = evaluations.length;
+    const statusCounts = evaluations.reduce(
+      (acc, ev) => {
+        acc[ev.status] = (acc[ev.status] || 0) + 1;
+        return acc;
+      },
+      { pending: 0, completed: 0 }
+    );
+    const byEmployee = new Map();
+    const byChecklist = new Map();
+    evaluations.forEach((ev) => {
+      const empName = ev.employee ? formatUserName(ev.employee) : "General";
+      const checklistName = ev.checklist?.title || "Checklist";
+      const empData = byEmployee.get(empName) || { name: empName, total: 0, completed: 0 };
+      const chkData =
+        byChecklist.get(checklistName) || { name: checklistName, total: 0, completed: 0 };
+      empData.total += 1;
+      chkData.total += 1;
+      if (ev.status === "completed") {
+        empData.completed += 1;
+        chkData.completed += 1;
+      }
+      byEmployee.set(empName, empData);
+      byChecklist.set(checklistName, chkData);
+    });
+
     const paged = evaluations.slice((page - 1) * pageSize, page * pageSize);
 
     return NextResponse.json({
       evaluations: paged.map(normalizeEvaluation),
       page,
       pageSize,
-      total
+      total,
+      summary: {
+        total,
+        pending: statusCounts.pending || 0,
+        completed: statusCounts.completed || 0,
+        completionRate: total > 0 ? Math.round((statusCounts.completed / total) * 100) : 0,
+        byEmployee: Array.from(byEmployee.values()),
+        byChecklist: Array.from(byChecklist.values())
+      }
     });
   } catch (err) {
     console.error("GET /api/evaluations", err);
@@ -127,6 +182,10 @@ export async function POST(req) {
     const evaluatorIds = Array.isArray(body.evaluatorIds)
       ? body.evaluatorIds.filter(Boolean)
       : [];
+    const employeeIds = Array.isArray(body.employeeIds)
+      ? body.employeeIds.filter(Boolean)
+      : [];
+    const applyToAllEmployees = Boolean(body.applyToAllEmployees);
     const notes = (body.notes || "").trim();
 
     if (!checklistId || evaluatorIds.length === 0) {
@@ -144,6 +203,18 @@ export async function POST(req) {
       );
     }
 
+    let targetEmployeeIds = [...new Set(employeeIds.map((id) => id.toString()))];
+    if (applyToAllEmployees) {
+      const employees = await User.find({
+        $or: [{ role: "employee" }, { roles: "employee" }]
+      }).select("_id");
+      targetEmployeeIds = employees.map((e) => e._id.toString());
+    }
+    // Si no se especifica empleado, se crea como checklist general
+    if (targetEmployeeIds.length === 0) {
+      targetEmployeeIds = [null];
+    }
+
     const created = [];
     for (const evaluatorId of evaluatorIds) {
       const evaluator = await User.findById(evaluatorId);
@@ -157,16 +228,33 @@ export async function POST(req) {
         );
       }
 
-      const evaluation = await Evaluation.create({
-        checklist: checklistId,
-        assignedTo: evaluatorId,
-        assignedBy: payload.id,
-        notes
-      });
+      for (const empId of targetEmployeeIds) {
+        if (empId) {
+          const employee = await User.findById(empId);
+          const employeeRoles = Array.isArray(employee?.roles) && employee.roles.length
+            ? employee.roles
+            : [employee?.role];
+          if (!employee || !employeeRoles.includes("employee")) {
+            return NextResponse.json(
+              { message: "El empleado seleccionado no es valido" },
+              { status: 400 }
+            );
+          }
+        }
 
-      await evaluation.populate("checklist", "title");
-      await evaluation.populate("assignedTo", "firstName lastName username role");
-      created.push(normalizeEvaluation(evaluation));
+        const evaluation = await Evaluation.create({
+          checklist: checklistId,
+          assignedTo: evaluatorId,
+          assignedBy: payload.id,
+          employee: empId || undefined,
+          notes
+        });
+
+        await evaluation.populate("checklist", "title");
+        await evaluation.populate("assignedTo", "firstName lastName username role");
+        await evaluation.populate("employee", "firstName lastName username role");
+        created.push(normalizeEvaluation(evaluation));
+      }
     }
 
     return NextResponse.json({ evaluations: created }, { status: 201 });

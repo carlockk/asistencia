@@ -21,6 +21,9 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
   const [activeEval, setActiveEval] = useState(null);
   const [responseMap, setResponseMap] = useState({});
   const [notes, setNotes] = useState("");
+  const [employees, setEmployees] = useState([]);
+  const [targetMode, setTargetMode] = useState("general"); // general | employee
+  const [targetEmployeeId, setTargetEmployeeId] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function loadEvaluations(p = page) {
@@ -44,6 +47,20 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
+  useEffect(() => {
+    async function loadEmployees() {
+      try {
+        const res = await fetch("/api/employees");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Error cargando empleados");
+        setEmployees(data.employees || []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadEmployees();
+  }, []);
+
   async function openEvaluation(id) {
     setMessage("");
     setError("");
@@ -58,6 +75,13 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
         map[r.itemId] = r.value;
       });
       setResponseMap(map);
+      if (data.evaluation?.employee) {
+        setTargetMode("employee");
+        setTargetEmployeeId(data.evaluation.employee);
+      } else {
+        setTargetMode("general");
+        setTargetEmployeeId("");
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err.message);
@@ -80,6 +104,10 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
       setError("Completa todas las preguntas antes de enviar.");
       return;
     }
+    if (targetMode === "employee" && !targetEmployeeId) {
+      setError("Selecciona un empleado para esta evaluacion.");
+      return;
+    }
     setSaving(true);
     setError("");
     setMessage("");
@@ -91,7 +119,11 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
       const res = await fetch(`/api/evaluations/${activeEval.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ responses, notes })
+        body: JSON.stringify({
+          responses,
+          notes,
+          employeeId: targetMode === "employee" ? targetEmployeeId : ""
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error enviando evaluacion");
@@ -186,6 +218,49 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
               <h2 className="text-lg font-semibold text-slate-800">
                 {activeEval.checklist.title}
               </h2>
+              <div className="mt-2 text-[12px] text-slate-600 space-y-1">
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="target-mode"
+                      className="accent-banco-rojo"
+                      checked={targetMode === "general"}
+                      onChange={() => {
+                        setTargetMode("general");
+                        setTargetEmployeeId("");
+                      }}
+                    />
+                    <span>General (aplica a todos)</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="target-mode"
+                      className="accent-banco-rojo"
+                      checked={targetMode === "employee"}
+                      onChange={() => setTargetMode("employee")}
+                    />
+                    <span>Por empleado</span>
+                  </label>
+                </div>
+                {targetMode === "employee" ? (
+                  <select
+                    className="input text-[12px]"
+                    value={targetEmployeeId}
+                    onChange={(e) => setTargetEmployeeId(e.target.value)}
+                  >
+                    <option value="">Selecciona empleado</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </div>
             </div>
             <button
               type="button"
@@ -236,6 +311,7 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
             <thead className="bg-pastel-celeste/60">
               <tr className="text-[11px] text-slate-600">
                 <th className="px-3 py-2 text-left">Checklist</th>
+                <th className="px-3 py-2 text-left">Empleado</th>
                 <th className="px-3 py-2 text-left">Estado</th>
                 <th className="px-3 py-2 text-left">Creada</th>
                 <th className="px-3 py-2 text-left">Accion</th>
@@ -262,6 +338,9 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
                   >
                     <td className="px-3 py-2 text-[11px] text-slate-700">
                       {ev.checklistTitle}
+                    </td>
+                    <td className="px-3 py-2 text-[11px] text-slate-700">
+                      {ev.employeeName || "General"}
                     </td>
                     <td className="px-3 py-2 text-[11px]">
                       {ev.status === "completed" ? (
