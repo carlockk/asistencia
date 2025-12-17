@@ -24,27 +24,25 @@ function parseYMD(value) {
   return `${match[1]}-${match[2]}-${match[3]}`;
 }
 
-export async function GET(req, { params }) {
+function safeISO(date) {
+  if (!date) return "";
+  try {
+    return new Date(date).toISOString();
+  } catch {
+    return "";
+  }
+}
+
+export async function GET(req) {
   try {
     await connectDB();
     await requireAdmin();
 
-    const userId = params.id;
     const { searchParams } = new URL(req.url);
     const from = parseYMD(searchParams.get("from"));
     const to = parseYMD(searchParams.get("to"));
 
-    const employee = await User.findById(userId).select(
-      "firstName lastName username hourlyRate"
-    );
-    if (!employee) {
-      return NextResponse.json(
-        { message: "Empleado no encontrado" },
-        { status: 404 }
-      );
-    }
-
-    const filter = { user: userId };
+    const filter = {};
     if (from && to) {
       filter.date = { $gte: from, $lte: to };
     } else if (from) {
@@ -54,32 +52,49 @@ export async function GET(req, { params }) {
     }
 
     const records = await Attendance.find(filter)
-      .sort({ date: -1, createdAt: -1 })
-      .limit(500);
+      .populate("user", "firstName lastName username")
+      .sort({ date: 1 });
 
-    return NextResponse.json({
-      employee: {
-        id: employee._id.toString(),
-        username: employee.username,
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        hourlyRate: employee.hourlyRate ?? 0
-      },
-      records: records.map((r) => ({
-        id: r._id.toString(),
-        date: r.date,
-        entryTime: r.entryTime,
-        exitTime: r.exitTime,
-        minutesWorked: r.minutesWorked || 0
-      }))
+    const header = [
+      "Empleado",
+      "Usuario",
+      "Fecha",
+      "Entrada (ISO)",
+      "Salida (ISO)",
+      "Minutos trabajados"
+    ];
+
+    const rows = records.map((r) => {
+      const userName = r.user
+        ? `${r.user.firstName || ""} ${r.user.lastName || ""}`.trim() ||
+          r.user.username
+        : "";
+      return [
+        `"${userName.replace(/"/g, '""')}"`,
+        `"${(r.user?.username || "").replace(/"/g, '""')}"`,
+        r.date || "",
+        safeISO(r.entryTime),
+        safeISO(r.exitTime),
+        r.minutesWorked ?? ""
+      ].join(",");
+    });
+
+    const csv = [header.join(","), ...rows].join("\n");
+
+    return new NextResponse(csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="asistencia.csv"'
+      }
     });
   } catch (err) {
-    console.error("GET /api/attendance/by-employee/[id]", err);
+    console.error("GET /api/attendance/export", err);
     if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
     return NextResponse.json(
-      { message: "Error obteniendo asistencia" },
+      { message: "Error exportando asistencia" },
       { status: 500 }
     );
   }

@@ -6,17 +6,17 @@ import Vacation from "@/models/Vacation";
 import User from "@/models/User";
 import { sendMail } from "@/lib/mailer";
 
-async function requireAdmin() {
+export const runtime = "nodejs";
+
+async function requireEmployee() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   if (!token) throw new Error("UNAUTHORIZED");
   const payload = verifyToken(token);
   const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
-  if (!roles.includes("admin")) throw new Error("FORBIDDEN");
+  if (!roles.includes("employee")) throw new Error("FORBIDDEN");
   return payload;
 }
-
-const ALLOWED_STATUS = ["pending", "approved", "rejected"];
 
 function parseDate(value) {
   if (!value) return null;
@@ -25,43 +25,27 @@ function parseDate(value) {
   return d.toISOString().slice(0, 10);
 }
 
-async function hasOverlap(userId, startDate, endDate, excludeId = null) {
-  const filter = {
+async function hasOverlap(userId, startDate, endDate) {
+  const existing = await Vacation.findOne({
     user: userId,
     status: { $ne: "rejected" },
     startDate: { $lte: endDate },
     endDate: { $gte: startDate }
-  };
-  if (excludeId) {
-    filter._id = { $ne: excludeId };
-  }
-  const existing = await Vacation.findOne(filter);
+  });
   return Boolean(existing);
 }
 
-export async function GET(req) {
+export async function GET() {
   try {
     await connectDB();
-    await requireAdmin();
-
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
-
-    const filter = {};
-    if (userId) filter.user = userId;
-
-    const vacations = await Vacation.find(filter)
-      .populate("user", "firstName lastName username")
-      .sort({ startDate: 1 });
+    const payload = await requireEmployee();
+    const vacations = await Vacation.find({ user: payload.id })
+      .sort({ startDate: -1 })
+      .limit(100);
 
     return NextResponse.json({
       vacations: vacations.map((v) => ({
         id: v._id.toString(),
-        userId: v.user?._id?.toString() || v.user?.toString(),
-        userName: v.user
-          ? `${v.user.firstName || ""} ${v.user.lastName || ""}`.trim() ||
-            v.user.username
-          : "Empleado",
         startDate: v.startDate,
         endDate: v.endDate,
         status: v.status,
@@ -69,7 +53,7 @@ export async function GET(req) {
       }))
     });
   } catch (err) {
-    console.error("GET /api/vacations", err);
+    console.error("GET /api/vacations/my", err);
     if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
@@ -83,18 +67,16 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await connectDB();
-    await requireAdmin();
+    const payload = await requireEmployee();
 
     const body = await req.json();
     const startDate = parseDate(body.startDate);
     const endDate = parseDate(body.endDate);
-    const userId = body.userId;
-    const status = ALLOWED_STATUS.includes(body.status) ? body.status : "pending";
-    const note = body.note || "";
+    const note = (body.note || "").toString().trim();
 
-    if (!userId || !startDate || !endDate) {
+    if (!startDate || !endDate) {
       return NextResponse.json(
-        { message: "Usuario, fecha inicio y fecha fin son obligatorios" },
+        { message: "Fecha inicio y fecha fin son obligatorias" },
         { status: 400 }
       );
     }
@@ -105,7 +87,7 @@ export async function POST(req) {
       );
     }
 
-    const userDoc = await User.findById(userId).select("email firstName lastName username");
+    const userDoc = await User.findById(payload.id).select("email firstName lastName username");
     if (!userDoc) {
       return NextResponse.json(
         { message: "El usuario no existe" },
@@ -113,7 +95,7 @@ export async function POST(req) {
       );
     }
 
-    if (await hasOverlap(userId, startDate, endDate)) {
+    if (await hasOverlap(payload.id, startDate, endDate)) {
       return NextResponse.json(
         { message: "El rango se superpone con vacaciones existentes" },
         { status: 400 }
@@ -121,16 +103,17 @@ export async function POST(req) {
     }
 
     const vacation = await Vacation.create({
-      user: userId,
+      user: payload.id,
       startDate,
       endDate,
-      status,
+      status: "pending",
       note
     });
 
+    // Notificar al solicitante
     if (userDoc.email) {
-      const subject = "Actualizacion de vacaciones";
-      const body = `Se registraron vacaciones del ${startDate} al ${endDate}. Estado: ${status}.`;
+      const subject = "Solicitud de vacaciones enviada";
+      const body = `Recibimos tu solicitud de vacaciones del ${startDate} al ${endDate}. Estado: pendiente.`;
       sendMail({
         to: userDoc.email,
         subject,
@@ -138,26 +121,42 @@ export async function POST(req) {
       }).catch(() => {});
     }
 
+    // Notificar a administradores si hay lista de alertas
+    const adminList =
+      process.env.ADMIN_ALERT_EMAILS?.split(",")
+        .map((e) => e.trim())
+        .filter(Boolean) || [];
+    if (adminList.length > 0) {
+      const subject = "Nueva solicitud de vacaciones";
+      const body = `El empleado ${userDoc.firstName || userDoc.username} solicitó vacaciones del ${startDate} al ${endDate}. Estado: pendiente.${note ? ` Nota: ${note}` : ""}`;
+      adminList.forEach((addr) => {
+        sendMail({
+          to: addr,
+          subject,
+          text: body
+        }).catch(() => {});
+      });
+    }
+
     return NextResponse.json(
       {
         vacation: {
           id: vacation._id.toString(),
-          userId,
           startDate,
           endDate,
-          status,
+          status: vacation.status,
           note
         }
       },
       { status: 201 }
     );
   } catch (err) {
-    console.error("POST /api/vacations", err);
+    console.error("POST /api/vacations/my", err);
     if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
     return NextResponse.json(
-      { message: "Error creando vacaciones" },
+      { message: "Error creando solicitud" },
       { status: 500 }
     );
   }

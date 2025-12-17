@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import Vacation from "@/models/Vacation";
 import User from "@/models/User";
+import { sendMail } from "@/lib/mailer";
 
 async function requireAdmin() {
   const cookieStore = await cookies();
@@ -15,6 +16,8 @@ async function requireAdmin() {
   return payload;
 }
 
+const ALLOWED_STATUS = ["pending", "approved", "rejected"];
+
 function parseDate(value) {
   if (!value) return null;
   const d = new Date(value);
@@ -25,6 +28,7 @@ function parseDate(value) {
 async function hasOverlap(userId, startDate, endDate, excludeId = null) {
   const filter = {
     user: userId,
+    status: { $ne: "rejected" },
     startDate: { $lte: endDate },
     endDate: { $gte: startDate }
   };
@@ -44,7 +48,7 @@ export async function PUT(req, { params }) {
     const startDate = parseDate(body.startDate);
     const endDate = parseDate(body.endDate);
     const userId = body.userId;
-    const status = body.status === "pending" ? "pending" : "approved";
+    const status = ALLOWED_STATUS.includes(body.status) ? body.status : "pending";
     const note = body.note || "";
 
     if (!userId || !startDate || !endDate) {
@@ -60,8 +64,8 @@ export async function PUT(req, { params }) {
       );
     }
 
-    const userExists = await User.exists({ _id: userId });
-    if (!userExists) {
+    const userDoc = await User.findById(userId).select("email firstName lastName username");
+    if (!userDoc) {
       return NextResponse.json(
         { message: "El usuario no existe" },
         { status: 400 }
@@ -89,9 +93,19 @@ export async function PUT(req, { params }) {
 
     if (!updated) {
       return NextResponse.json(
-        { message: "Vacación no encontrada" },
+        { message: "Vacacion no encontrada" },
         { status: 404 }
       );
+    }
+
+    if (userDoc.email) {
+      const subject = "Estado de vacaciones actualizado";
+      const body = `Tus vacaciones del ${startDate} al ${endDate} fueron marcadas como ${status}.`;
+      sendMail({
+        to: userDoc.email,
+        subject,
+        text: `${body}${note ? ` Nota: ${note}` : ""}`
+      }).catch(() => {});
     }
 
     return NextResponse.json({
@@ -124,7 +138,7 @@ export async function DELETE(req, { params }) {
     const deleted = await Vacation.findByIdAndDelete(params.id);
     if (!deleted) {
       return NextResponse.json(
-        { message: "Vacación no encontrada" },
+        { message: "Vacacion no encontrada" },
         { status: 404 }
       );
     }

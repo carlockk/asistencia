@@ -222,6 +222,13 @@ export default function VacationsClient({ adminName }) {
         </span>
       );
     }
+    if (status === "rejected") {
+      return (
+        <span className={`${base} bg-rose-50 text-rose-700 border border-rose-100`}>
+          Rechazada
+        </span>
+      );
+    }
     return (
       <span className={`${base} bg-emerald-50 text-emerald-700 border border-emerald-100`}>
         Aprobada
@@ -331,6 +338,7 @@ export default function VacationsClient({ adminName }) {
             >
               <option value="approved">Aprobada</option>
               <option value="pending">Pendiente</option>
+              <option value="rejected">Rechazada</option>
             </select>
           </div>
           <div className="md:col-span-2">

@@ -7,8 +7,8 @@ const VacationSchema = new Schema(
     endDate: { type: String, required: true }, // YYYY-MM-DD
     status: {
       type: String,
-      enum: ["pending", "approved"],
-      default: "approved"
+      enum: ["pending", "approved", "rejected"],
+      default: "pending"
     },
     note: { type: String, default: "" }
   },

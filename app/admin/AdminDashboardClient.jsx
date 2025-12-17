@@ -29,6 +29,10 @@ export default function AdminDashboardClient({ adminName }) {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploadingCreateAvatar, setUploadingCreateAvatar] = useState(false);
   const [uploadingEditAvatar, setUploadingEditAvatar] = useState(false);
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const pageSize = 10;
 
   const baseForm = {
@@ -320,6 +324,36 @@ export default function AdminDashboardClient({ adminName }) {
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
+
+  async function handleExportAttendance() {
+    setExporting(true);
+    setExportError("");
+    try {
+      const params = new URLSearchParams();
+      if (exportFrom) params.set("from", exportFrom);
+      if (exportTo) params.set("to", exportTo);
+      const res = await fetch(`/api/attendance/export?${params.toString()}`, {
+        method: "GET"
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Error exportando asistencia");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "asistencia.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
   const nav = (
     <AdminNav active="/admin" onNavigate={(path) => router.push(path)} />
   );
@@ -557,6 +591,57 @@ export default function AdminDashboardClient({ adminName }) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card p-5 md:p-6 space-y-4 mx-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="text-xs text-slate-500 mb-1">
+              Exporta asistencia para analisis o nomina
+            </p>
+            <h3 className="text-lg font-semibold text-slate-800">
+              Exportar asistencia (CSV)
+            </h3>
+          </div>
+          <div className="flex gap-3 flex-wrap items-end text-xs">
+            <div>
+              <label className="label">Desde</label>
+              <input
+                type="date"
+                className="input text-xs"
+                value={exportFrom}
+                onChange={(e) => setExportFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Hasta</label>
+              <input
+                type="date"
+                className="input text-xs"
+                value={exportTo}
+                onChange={(e) => setExportTo(e.target.value)}
+              />
+            </div>
+            <button
+              className="btn-secondary mt-2"
+              type="button"
+              onClick={handleExportAttendance}
+              disabled={exporting}
+            >
+              {exporting ? "Exportando..." : "Descargar CSV"}
+            </button>
+          </div>
+        </div>
+        {exportError && (
+          <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 px-3 py-2 rounded-2xl">
+            {exportError}
+          </p>
+        )}
+        {!exportError && (
+          <p className="text-[11px] text-slate-600">
+            Si no seleccionas fechas, se exportara todo el historial de asistencia.
+          </p>
+        )}
       </div>
 
       {showCreateModal && (

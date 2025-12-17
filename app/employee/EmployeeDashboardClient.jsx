@@ -93,6 +93,13 @@ export default function EmployeeDashboardClient({ employeeName }) {
             >
               Mi perfil
             </button>
+            <button
+              className="btn-secondary text-xs px-3 py-1.5"
+              type="button"
+              onClick={() => router.push("/employee/vacations")}
+            >
+              Vacaciones
+            </button>
             {hasEvaluator && (
               <button
                 className="btn-secondary text-xs px-3 py-1.5"
