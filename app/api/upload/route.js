@@ -31,26 +31,49 @@ export async function POST(req) {
       );
     }
 
-    if (!file.type?.startsWith("image/")) {
+    const contentType = file.type || "application/octet-stream";
+    const isImage = contentType.startsWith("image/");
+    const allowedDocs = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ];
+
+    if (!isImage && !allowedDocs.includes(contentType)) {
       return NextResponse.json(
-        { message: "Solo se permiten imagenes" },
+        { message: "Solo se permiten imagenes o PDF/DOC" },
         { status: 400 }
       );
     }
 
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
-    const uploadStr = `data:${file.type};base64,${base64}`;
+    const uploadStr = `data:${contentType};base64,${base64}`;
 
-    const uploadResult = await cloudinary.uploader.upload(uploadStr, {
-      folder: "asistencia/avatars",
-      resource_type: "image",
-      transformation: [{ width: 800, height: 800, crop: "limit" }]
-    });
+    const folder = formData.get("folder") === "documents"
+      ? "asistencia/documents"
+      : "asistencia/avatars";
+
+    const uploadOptions = {
+      folder,
+      resource_type: isImage ? "image" : "auto",
+      use_filename: true,
+      unique_filename: true
+    };
+
+    if (isImage) {
+      uploadOptions.transformation = [{ width: 800, height: 800, crop: "limit" }];
+    }
+
+    const uploadResult = await cloudinary.uploader.upload(uploadStr, uploadOptions);
 
     return NextResponse.json({
       url: uploadResult.secure_url,
-      publicId: uploadResult.public_id
+      publicId: uploadResult.public_id,
+      originalFilename: uploadResult.original_filename,
+      format: uploadResult.format,
+      bytes: uploadResult.bytes,
+      resourceType: uploadResult.resource_type
     });
   } catch (err) {
     console.error("POST /api/upload", err);

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../components/TopBar";
+import AdminNav from "../components/AdminNav";
 import { TreeEditor, ReadOnlyTree } from "./components/TreeEditor";
 import { ratingLabel, makeId } from "./utils";
 import { useAvatar } from "./useAvatar";
@@ -11,6 +12,9 @@ export default function AdminEvaluationsClient({ adminName }) {
   const router = useRouter();
   const avatarUrl = useAvatar();
   const pageSize = 10;
+  const nav = (
+    <AdminNav active="/evaluations" onNavigate={(path) => router.push(path)} />
+  );
 
   const [checklistForm, setChecklistForm] = useState({
     title: "",
@@ -344,27 +348,7 @@ export default function AdminEvaluationsClient({ adminName }) {
         userName={adminName}
         subtitle="Checklists y evaluaciones"
         avatarUrl={avatarUrl}
-        actions={
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-[11px] text-slate-600">
-            <button
-              type="button"
-              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
-              onClick={() => router.push("/admin")}
-            >
-              Usuarios
-            </button>
-            <button
-              type="button"
-              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
-              onClick={() => router.push("/admin/vacations")}
-            >
-              Vacaciones
-            </button>
-            <span className="font-semibold text-slate-800 sm:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4">
-              Evaluaciones
-            </span>
-          </div>
-        }
+        actions={nav}
         onLogout={async () => {
           await fetch("/api/auth/logout", { method: "POST" });
           router.push("/");

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../../components/TopBar";
+import AdminNav from "../../components/AdminNav";
 
 function parseYMD(value) {
   if (!value) return null;
@@ -74,6 +75,9 @@ export default function VacationsClient({ adminName }) {
   const [info, setInfo] = useState("");
   const [formError, setFormError] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const nav = (
+    <AdminNav active="/admin/vacations" onNavigate={(path) => router.push(path)} />
+  );
 
   useEffect(() => {
     async function loadEmployees() {
@@ -231,30 +235,7 @@ export default function VacationsClient({ adminName }) {
         userName={adminName}
         subtitle="Vacaciones"
         avatarUrl={avatarUrl}
-        actions={
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-[11px] text-slate-600">
-            <button
-              type="button"
-              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
-              onClick={() => router.push("/admin")}
-            >
-              Usuarios
-            </button>
-            <span
-              className="font-semibold text-slate-800 sm:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4"
-              aria-current="page"
-            >
-              Vacaciones
-            </span>
-            <button
-              type="button"
-              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
-              onClick={() => router.push("/evaluations")}
-            >
-              Evaluaciones
-            </button>
-          </div>
-        }
+        actions={nav}
         onLogout={async () => {
           await fetch("/api/auth/logout", { method: "POST" });
           router.push("/");

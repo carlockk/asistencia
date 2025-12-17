@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../components/TopBar";
+import AdminNav from "../components/AdminNav";
 
 export default function AdminDashboardClient({ adminName }) {
   const router = useRouter();
@@ -319,6 +320,9 @@ export default function AdminDashboardClient({ adminName }) {
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
+  const nav = (
+    <AdminNav active="/admin" onNavigate={(path) => router.push(path)} />
+  );
 
   return (
     <div className="w-full">
@@ -327,31 +331,7 @@ export default function AdminDashboardClient({ adminName }) {
         subtitle="Panel administrador"
         avatarUrl={avatarUrl}
         onLogout={handleLogout}
-        actions={
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-[11px] text-slate-600">
-            <span className="hidden sm:inline">Gestiona usuarios y asistencia</span>
-            <span
-              className="font-semibold text-slate-800 sm:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4"
-              aria-current="page"
-            >
-              Usuarios
-            </span>
-            <button
-              type="button"
-              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
-              onClick={() => router.push("/admin/vacations")}
-            >
-              Vacaciones
-            </button>
-            <button
-              type="button"
-              className="text-slate-500 hover:text-slate-800 sm:hover:underline sm:decoration-banco-rojo sm:decoration-2 sm:underline-offset-4 px-0 text-left"
-              onClick={() => router.push("/evaluations")}
-            >
-              Evaluaciones
-            </button>
-          </div>
-        }
+        actions={nav}
       />
 
       <div className="space-y-4 px-4 pb-4">
