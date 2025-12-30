@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import Checklist from "@/models/Checklist";
+import Evaluation from "@/models/Evaluation";
+import EvaluationSchedule from "@/models/EvaluationSchedule";
 
 export const runtime = "nodejs";
 
@@ -23,12 +25,31 @@ function makeId() {
   return `item-${Math.random().toString(16).slice(2)}`;
 }
 
+const ALLOWED_TYPES = new Set([
+  "section",
+  "rating",
+  "text",
+  "number",
+  "date",
+  "time",
+  "boolean",
+  "select"
+]);
+
+function normalizeFieldType(item) {
+  const raw = (item?.fieldType || item?.type || "").toString().trim();
+  if (ALLOWED_TYPES.has(raw)) return raw;
+  if (item?.hasCheck === false) return "section";
+  return "rating";
+}
+
 function sanitizeItems(items) {
   if (!Array.isArray(items)) return [];
   return items
     .map((item) => {
       const title = (item?.title || "").toString().trim();
       if (!title) return null;
+      const fieldType = normalizeFieldType(item);
       const options = Array.isArray(item?.options)
         ? item.options
             .map((opt) => {
@@ -39,11 +60,14 @@ function sanitizeItems(items) {
             })
             .filter(Boolean)
         : [];
+      const sanitizedOptions =
+        fieldType === "rating" || fieldType === "select" ? options : [];
       return {
         id: item.id || makeId(),
         title,
-        hasCheck: item?.hasCheck === false ? false : true,
-        options,
+        fieldType,
+        hasCheck: fieldType === "section" ? false : true,
+        options: sanitizedOptions,
         children: sanitizeItems(item.children || [])
       };
     })
@@ -126,6 +150,33 @@ export async function PUT(req, { params }) {
     }
     return NextResponse.json(
       { message: "Error actualizando checklist" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(_req, { params }) {
+  try {
+    await connectDB();
+    await requireRole();
+
+    const checklist = await Checklist.findById(params.id);
+    if (!checklist) {
+      return NextResponse.json({ message: "No encontrado" }, { status: 404 });
+    }
+
+    await Evaluation.deleteMany({ checklist: checklist._id });
+    await EvaluationSchedule.deleteMany({ checklist: checklist._id });
+    await checklist.deleteOne();
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /api/checklists/[id]", err);
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "No autorizado" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { message: "Error eliminando checklist" },
       { status: 500 }
     );
   }

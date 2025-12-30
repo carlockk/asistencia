@@ -32,7 +32,10 @@ export default async function EmployeePage() {
           </div>
         }
       >
-        <EmployeeDashboardClient employeeName={payload.name || "Empleado"} />
+        <EmployeeDashboardClient
+          employeeName={payload.name || "Empleado"}
+          roles={roles}
+        />
       </Suspense>
     </div>
   );

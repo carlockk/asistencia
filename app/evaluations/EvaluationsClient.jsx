@@ -8,5 +8,5 @@ export default function EvaluationsClient({ roles = [], userName }) {
   if (r.includes("admin")) {
     return <AdminEvaluationsClient adminName={userName} />;
   }
-  return <EvaluatorEvaluationsClient evaluatorName={userName} />;
+  return <EvaluatorEvaluationsClient evaluatorName={userName} roles={r} />;
 }

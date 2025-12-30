@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../../components/TopBar";
+import RoleNav from "../../components/RoleNav";
 
 function parseYMD(value) {
   if (!value) return null;
@@ -76,7 +77,7 @@ function statusBadge(status) {
   );
 }
 
-export default function VacationsEmployeeClient({ employeeName }) {
+export default function VacationsEmployeeClient({ employeeName, roles = [] }) {
   const router = useRouter();
   const [vacations, setVacations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -176,22 +177,11 @@ export default function VacationsEmployeeClient({ employeeName }) {
         subtitle="Mis vacaciones"
         avatarUrl={avatarUrl}
         actions={
-          <div className="flex gap-2">
-            <button
-              className="btn-secondary text-xs px-3 py-1.5"
-              type="button"
-              onClick={() => router.push("/employee")}
-            >
-              Panel
-            </button>
-            <button
-              className="btn-secondary text-xs px-3 py-1.5"
-              type="button"
-              onClick={() => router.push("/employee/profile")}
-            >
-              Mi perfil
-            </button>
-          </div>
+          <RoleNav
+            roles={roles}
+            active="/employee/vacations"
+            onNavigate={router.push}
+          />
         }
         onLogout={handleLogout}
       />

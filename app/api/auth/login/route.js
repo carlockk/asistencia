@@ -6,10 +6,34 @@ import { getRolesFromUser, pickPrimaryRole, signToken } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+const RATE_LIMIT = {
+  max: 8,
+  windowMs: 15 * 60 * 1000
+};
+const attempts = new Map();
+
+function pruneAttempts(key, now) {
+  const list = attempts.get(key) || [];
+  const next = list.filter((ts) => now - ts < RATE_LIMIT.windowMs);
+  attempts.set(key, next);
+  return next;
+}
+
 export async function POST(req) {
   try {
     await connectDB();
     const { username, password } = await req.json();
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const key = `${ip}:${(username || "").toString().toLowerCase()}`;
+    const now = Date.now();
+    const list = pruneAttempts(key, now);
+    if (list.length >= RATE_LIMIT.max) {
+      return NextResponse.json(
+        { message: "Demasiados intentos. Intenta de nuevo mas tarde." },
+        { status: 429 }
+      );
+    }
 
     if (!username || !password) {
       return NextResponse.json(
@@ -20,6 +44,7 @@ export async function POST(req) {
 
     const user = await User.findOne({ username });
     if (!user) {
+      attempts.set(key, [...list, now]);
       return NextResponse.json(
         { message: "Usuario o contraseña incorrectos" },
         { status: 401 }
@@ -28,6 +53,7 @@ export async function POST(req) {
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
+      attempts.set(key, [...list, now]);
       return NextResponse.json(
         { message: "Usuario o contraseña incorrectos" },
         { status: 401 }

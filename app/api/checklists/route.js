@@ -23,12 +23,31 @@ function makeId() {
   return `item-${Math.random().toString(16).slice(2)}`;
 }
 
+const ALLOWED_TYPES = new Set([
+  "section",
+  "rating",
+  "text",
+  "number",
+  "date",
+  "time",
+  "boolean",
+  "select"
+]);
+
+function normalizeFieldType(item) {
+  const raw = (item?.fieldType || item?.type || "").toString().trim();
+  if (ALLOWED_TYPES.has(raw)) return raw;
+  if (item?.hasCheck === false) return "section";
+  return "rating";
+}
+
 function sanitizeItems(items) {
   if (!Array.isArray(items)) return [];
   return items
     .map((item) => {
       const title = (item?.title || "").toString().trim();
       if (!title) return null;
+      const fieldType = normalizeFieldType(item);
       const options = Array.isArray(item?.options)
         ? item.options
             .map((opt) => {
@@ -39,11 +58,14 @@ function sanitizeItems(items) {
             })
             .filter(Boolean)
         : [];
+      const sanitizedOptions =
+        fieldType === "rating" || fieldType === "select" ? options : [];
       return {
         id: item.id || makeId(),
         title,
-        hasCheck: item?.hasCheck === false ? false : true,
-        options,
+        fieldType,
+        hasCheck: fieldType === "section" ? false : true,
+        options: sanitizedOptions,
         children: sanitizeItems(item.children || [])
       };
     })

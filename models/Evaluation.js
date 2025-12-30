@@ -3,11 +3,7 @@ import mongoose, { Schema } from "mongoose";
 const ResponseSchema = new Schema(
   {
     itemId: { type: String, required: true },
-    value: {
-      type: String,
-      enum: ["siempre", "casi_siempre", "aveces", "nunca"],
-      required: true
-    },
+    value: { type: Schema.Types.Mixed, required: true },
     comment: { type: String, default: "" }
   },
   { _id: false }
@@ -16,6 +12,8 @@ const ResponseSchema = new Schema(
 const EvaluationSchema = new Schema(
   {
     checklist: { type: Schema.Types.ObjectId, ref: "Checklist", required: true },
+    schedule: { type: Schema.Types.ObjectId, ref: "EvaluationSchedule" },
+    periodKey: { type: String },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", required: true },
     assignedBy: { type: Schema.Types.ObjectId, ref: "User" },
     // Empleado evaluado (opcional para checklists generales)
@@ -37,6 +35,7 @@ const EvaluationSchema = new Schema(
 
 EvaluationSchema.index({ assignedTo: 1, status: 1, createdAt: -1 });
 EvaluationSchema.index({ employee: 1, status: 1, createdAt: -1 });
+EvaluationSchema.index({ schedule: 1, periodKey: 1 });
 
 export default mongoose.models.Evaluation ||
   mongoose.model("Evaluation", EvaluationSchema);

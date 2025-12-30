@@ -30,7 +30,7 @@ export default async function ProfilePage() {
           </div>
         }
       >
-        <ProfileClient />
+        <ProfileClient roles={roles} />
       </Suspense>
     </div>
   );

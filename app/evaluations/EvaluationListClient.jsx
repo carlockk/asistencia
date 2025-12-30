@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../components/TopBar";
 import { ReadOnlyTree } from "./components/TreeEditor";
-import { ratingLabel } from "./utils";
+import { fieldTypeForItem, ratingLabel } from "./utils";
 import { useAvatar } from "./useAvatar";
+import ChecklistForm from "./components/ChecklistForm";
 
 const pageSize = 10;
 
@@ -29,6 +30,10 @@ export default function EvaluationListClient({ adminName }) {
   const [employees, setEmployees] = useState([]);
   const [checklists, setChecklists] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [editResponses, setEditResponses] = useState({});
+  const [editNotes, setEditNotes] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   const topEmployees = useMemo(() => {
     if (!summary?.byEmployee) return [];
@@ -123,6 +128,13 @@ export default function EvaluationListClient({ adminName }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error cargando detalle");
       setViewEval(data.evaluation);
+      const map = {};
+      (data.evaluation?.responses || []).forEach((r) => {
+        map[r.itemId] = r.value;
+      });
+      setEditResponses(map);
+      setEditNotes(data.evaluation?.notes || "");
+      setSaveMessage("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -146,6 +158,68 @@ export default function EvaluationListClient({ adminName }) {
     setChecklistId("");
     setStatus("");
     setPage(1);
+  }
+
+  function setResponse(itemId, value) {
+    setEditResponses((prev) => ({ ...prev, [itemId]: value }));
+  }
+
+  function isResponseFilled(item, value) {
+    const fieldType = fieldTypeForItem(item);
+    if (fieldType === "section") return true;
+    if (fieldType === "number") return value !== "" && !Number.isNaN(Number(value));
+    if (fieldType === "text") return typeof value === "string" && value.trim() !== "";
+    if (fieldType === "date") return typeof value === "string" && value.trim() !== "";
+    if (fieldType === "time") return typeof value === "string" && value.trim() !== "";
+    return value !== undefined && value !== null && value !== "";
+  }
+
+  function ensureAllAnswered(items) {
+    let valid = true;
+    const walk = (list) => {
+      list.forEach((item) => {
+        const value = editResponses[item.id];
+        if (!isResponseFilled(item, value)) valid = false;
+        if (item.children?.length) walk(item.children);
+      });
+    };
+    walk(items);
+    return valid;
+  }
+
+  async function handleSave() {
+    if (!viewEval?.id || !viewEval?.checklist?.items) return;
+    if (!ensureAllAnswered(viewEval.checklist.items)) {
+      setError("Completa todas las preguntas antes de enviar.");
+      return;
+    }
+    setSavingEdit(true);
+    setError("");
+    setSaveMessage("");
+    try {
+      const responses = Object.entries(editResponses).map(([itemId, value]) => ({
+        itemId,
+        value
+      }));
+      const res = await fetch(`/api/evaluations/${viewEval.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          responses,
+          notes: editNotes,
+          employeeId: viewEval.employee || ""
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error guardando evaluacion");
+      setViewEval(data.evaluation);
+      setSaveMessage("Evaluacion guardada.");
+      setPage(1);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   return (
@@ -451,7 +525,7 @@ export default function EvaluationListClient({ adminName }) {
                         className="text-slate-700 underline decoration-banco-rojo decoration-2 underline-offset-4"
                         onClick={() => handleView(ev.id)}
                       >
-                        Ver
+                        {ev.status === "completed" ? "Ver" : "Completar"}
                       </button>
                     </td>
                   </tr>
@@ -540,11 +614,45 @@ export default function EvaluationListClient({ adminName }) {
                     {viewEval.checklist.description}
                   </p>
                 ) : null}
-                <ReadOnlyTree
-                  items={viewEval.checklist.items || []}
-                  responses={viewEval.responses || []}
-                  ratingLabel={ratingLabel}
-                />
+                {viewEval.status === "pending" ? (
+                  <>
+                    <ChecklistForm
+                      items={viewEval.checklist.items || []}
+                      responseMap={editResponses}
+                      onChange={setResponse}
+                    />
+                    <div>
+                      <label className="label">Notas</label>
+                      <textarea
+                        className="input min-h-[80px]"
+                        value={editNotes}
+                        onChange={(e) => setEditNotes(e.target.value)}
+                        placeholder="Observaciones generales"
+                      />
+                    </div>
+                    {saveMessage ? (
+                      <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-2xl">
+                        {saveMessage}
+                      </p>
+                    ) : null}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={savingEdit}
+                        onClick={handleSave}
+                      >
+                        {savingEdit ? "Guardando..." : "Guardar evaluacion"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <ReadOnlyTree
+                    items={viewEval.checklist.items || []}
+                    responses={viewEval.responses || []}
+                    ratingLabel={ratingLabel}
+                  />
+                )}
               </div>
             ) : null}
           </div>

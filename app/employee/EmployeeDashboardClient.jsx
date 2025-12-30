@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../components/TopBar";
+import RoleNav from "../components/RoleNav";
 
 function useClock() {
   const [now, setNow] = useState(null);
@@ -15,14 +16,13 @@ function useClock() {
   return now;
 }
 
-export default function EmployeeDashboardClient({ employeeName }) {
+export default function EmployeeDashboardClient({ employeeName, roles = [] }) {
   const router = useRouter();
   const now = useClock();
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [hasEvaluator, setHasEvaluator] = useState(false);
 
   useEffect(() => {
     async function loadAvatar() {
@@ -32,10 +32,6 @@ export default function EmployeeDashboardClient({ employeeName }) {
         const data = await res.json();
         if (data?.user) {
           if (data.user.avatarUrl) setAvatarUrl(data.user.avatarUrl);
-          const roles = Array.isArray(data.user.roles)
-            ? data.user.roles
-            : [data.user.role];
-          if (roles.includes("evaluator")) setHasEvaluator(true);
         }
       } catch {
         // ignorar errores de avatar
@@ -74,10 +70,6 @@ export default function EmployeeDashboardClient({ employeeName }) {
     router.push("/");
   }
 
-  function goProfile() {
-    router.push("/employee/profile");
-  }
-
   return (
     <div className="w-full">
       <TopBar
@@ -85,31 +77,7 @@ export default function EmployeeDashboardClient({ employeeName }) {
         subtitle="Panel empleado"
         avatarUrl={avatarUrl}
         actions={
-          <div className="flex gap-2">
-            <button
-              className="btn-secondary text-xs px-3 py-1.5"
-              type="button"
-              onClick={goProfile}
-            >
-              Mi perfil
-            </button>
-            <button
-              className="btn-secondary text-xs px-3 py-1.5"
-              type="button"
-              onClick={() => router.push("/employee/vacations")}
-            >
-              Vacaciones
-            </button>
-            {hasEvaluator && (
-              <button
-                className="btn-secondary text-xs px-3 py-1.5"
-                type="button"
-                onClick={() => router.push("/evaluations")}
-              >
-                Evaluaciones
-              </button>
-            )}
-          </div>
+          <RoleNav roles={roles} active="/employee" onNavigate={router.push} />
         }
         onLogout={handleLogout}
       />

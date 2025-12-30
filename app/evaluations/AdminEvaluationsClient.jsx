@@ -29,11 +29,15 @@ export default function AdminEvaluationsClient({ adminName }) {
     evaluatorIds: [],
     employeeIds: [],
     applyToAllEmployees: false,
-    notes: ""
+    notes: "",
+    recurrenceEnabled: false,
+    recurrenceFrequency: "daily",
+    recurrenceTime: ""
   });
 
   const [savingChecklist, setSavingChecklist] = useState(false);
   const [savingAssign, setSavingAssign] = useState(false);
+  const [deletingChecklistId, setDeletingChecklistId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -141,7 +145,7 @@ export default function AdminEvaluationsClient({ adminName }) {
             ...item,
             children: [
               ...(item.children || []),
-              { id: makeId(), title: "", children: [] }
+              { id: makeId(), title: "", fieldType: "rating", children: [] }
             ]
           };
         }
@@ -165,17 +169,18 @@ export default function AdminEvaluationsClient({ adminName }) {
   function addRootItem() {
     setChecklistForm((prev) => ({
       ...prev,
-      items: [...prev.items, { id: makeId(), title: "", children: [] }]
+      items: [...prev.items, { id: makeId(), title: "", fieldType: "rating", children: [] }]
     }));
   }
 
-  function toggleCheck(id) {
+  function changeType(id, value) {
     updateChecklistItems((items) => {
       const ctx = findContext(items, id);
       if (!ctx) return items;
       const current = ctx.list[ctx.index];
-      current.hasCheck = current.hasCheck === false ? true : false;
-      if (current.hasCheck === false) {
+      current.fieldType = value;
+      current.hasCheck = value === "section" ? false : true;
+      if (!["rating", "select"].includes(value)) {
         current.options = [];
       }
       return items;
@@ -218,13 +223,19 @@ export default function AdminEvaluationsClient({ adminName }) {
 
   async function loadEvaluators() {
     try {
-      const res = await fetch("/api/users?role=evaluator");
+      const res = await fetch("/api/users");
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error cargando evaluadores");
-      const mapped = (data.users || []).map((u) => ({
-        id: u.id,
-        name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username
-      }));
+      const mapped = (data.users || [])
+        .filter((u) => {
+          const roles = Array.isArray(u.roles) && u.roles.length ? u.roles : [u.role];
+          return roles.includes("evaluator") || roles.includes("admin");
+        })
+        .map((u) => ({
+          id: u.id,
+          name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username,
+          role: (u.roles || []).includes("admin") || u.role === "admin" ? "admin" : "evaluator"
+        }));
       setEvaluators(mapped);
       if (!assignForm.evaluatorIds.length && mapped.length) {
         setAssignForm((prev) => ({ ...prev, evaluatorIds: [mapped[0].id] }));
@@ -313,7 +324,12 @@ export default function AdminEvaluationsClient({ adminName }) {
     try {
       const payload = {
         ...assignForm,
-        employeeIds: assignForm.applyToAllEmployees ? [] : assignForm.employeeIds
+        employeeIds: assignForm.applyToAllEmployees ? [] : assignForm.employeeIds,
+        recurrence: {
+          enabled: assignForm.recurrenceEnabled,
+          frequency: assignForm.recurrenceFrequency,
+          dueTime: assignForm.recurrenceTime
+        }
       };
       const res = await fetch("/api/evaluations", {
         method: "POST",
@@ -333,12 +349,40 @@ export default function AdminEvaluationsClient({ adminName }) {
         evaluatorIds: [],
         employeeIds: [],
         applyToAllEmployees: false,
-        notes: ""
+        notes: "",
+        recurrenceEnabled: false,
+        recurrenceFrequency: "daily",
+        recurrenceTime: ""
       }));
     } catch (err) {
       setError(err.message);
     } finally {
       setSavingAssign(false);
+    }
+  }
+
+  async function handleDeleteChecklist(id) {
+    const ok = window.confirm(
+      "Seguro que deseas eliminar este checklist? Se borraran sus evaluaciones."
+    );
+    if (!ok) return;
+    setDeletingChecklistId(id);
+    setMessage("");
+    setError("");
+    try {
+      const res = await fetch(`/api/checklists/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error eliminando checklist");
+      setMessage("Checklist eliminado correctamente.");
+      if (editingChecklistId === id) {
+        setEditingChecklistId(null);
+        setChecklistForm({ title: "", description: "", items: [] });
+      }
+      loadChecklists();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingChecklistId(null);
     }
   }
 
@@ -438,13 +482,13 @@ export default function AdminEvaluationsClient({ adminName }) {
                 <TreeEditor
                   items={checklistForm.items}
                   onChangeTitle={updateNodeTitle}
+                  onChangeType={changeType}
                   onAddChild={addChild}
                   onRemove={removeNode}
                   onMoveUp={moveUp}
                   onMoveDown={moveDown}
                   onPromote={promote}
                   onDemote={demote}
-                  onToggleCheck={toggleCheck}
                   onChangeOptions={changeOptions}
                   enableReorder
                 />
@@ -516,7 +560,7 @@ export default function AdminEvaluationsClient({ adminName }) {
                 {evaluators.length === 0 && <option value="">Sin usuarios</option>}
                 {evaluators.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {e.name}
+                    {e.name} {e.role === "admin" ? "(Admin)" : ""}
                   </option>
                 ))}
               </select>
@@ -580,6 +624,63 @@ export default function AdminEvaluationsClient({ adminName }) {
                 placeholder="Indicaciones para el evaluador"
               />
             </div>
+            <div className="space-y-2">
+              <label className="label">Periodicidad (opcional)</label>
+              <div className="flex items-center gap-2 text-[12px] text-slate-600">
+                <input
+                  type="checkbox"
+                  className="accent-banco-rojo"
+                  checked={assignForm.recurrenceEnabled}
+                  onChange={(e) =>
+                    setAssignForm((prev) => ({
+                      ...prev,
+                      recurrenceEnabled: e.target.checked
+                    }))
+                  }
+                  id="recurrence-enabled"
+                />
+                <label htmlFor="recurrence-enabled" className="cursor-pointer select-none">
+                  Activar periodicidad
+                </label>
+              </div>
+              {assignForm.recurrenceEnabled ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="label text-[11px]">Frecuencia</label>
+                    <select
+                      className="input text-[12px]"
+                      value={assignForm.recurrenceFrequency}
+                      onChange={(e) =>
+                        setAssignForm((prev) => ({
+                          ...prev,
+                          recurrenceFrequency: e.target.value
+                        }))
+                      }
+                    >
+                      <option value="daily">Diaria</option>
+                      <option value="monthly">Mensual</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label text-[11px]">Hora limite (opcional)</label>
+                    <input
+                      type="time"
+                      className="input text-[12px]"
+                      value={assignForm.recurrenceTime}
+                      onChange={(e) =>
+                        setAssignForm((prev) => ({
+                          ...prev,
+                          recurrenceTime: e.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              ) : null}
+              <p className="text-[11px] text-slate-500">
+                Si activas la periodicidad, se generara una evaluacion por dia o mes.
+              </p>
+            </div>
             <div className="flex justify-end">
               <button type="submit" className="btn-primary" disabled={savingAssign}>
                 {savingAssign ? "Enviando..." : "Crear evaluacion"}
@@ -611,6 +712,14 @@ export default function AdminEvaluationsClient({ adminName }) {
                         onClick={() => startEditChecklist(c)}
                       >
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="text-rose-600 text-[11px] px-2.5 py-1"
+                        onClick={() => handleDeleteChecklist(c.id)}
+                        disabled={deletingChecklistId === c.id}
+                      >
+                        {deletingChecklistId === c.id ? "Eliminando..." : "Eliminar"}
                       </button>
                       <span className="text-slate-500">
                         {new Date(c.createdAt).toLocaleDateString("es-CL")}

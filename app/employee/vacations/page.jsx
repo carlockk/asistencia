@@ -29,7 +29,10 @@ export default async function EmployeeVacationsPage() {
         </div>
       }
     >
-      <VacationsEmployeeClient employeeName={payload.name || "Empleado"} />
+      <VacationsEmployeeClient
+        employeeName={payload.name || "Empleado"}
+        roles={roles}
+      />
     </Suspense>
   );
 }

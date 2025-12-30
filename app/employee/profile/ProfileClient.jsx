@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../../components/TopBar";
+import RoleNav from "../../components/RoleNav";
 
-export default function ProfileClient() {
+export default function ProfileClient({ roles = [] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,10 +73,6 @@ export default function ProfileClient() {
     }
   }
 
-  function goBack() {
-    router.push("/employee");
-  }
-
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
@@ -115,20 +112,18 @@ export default function ProfileClient() {
   return (
     <div className="w-full">
       <TopBar
-  userName={topBarName}
-  subtitle="Perfil"
-  avatarUrl={user?.avatarUrl || ""}
-  actions={
-    <button
-      className="btn-secondary text-xs px-3 py-1.5"
-      type="button"
-      onClick={goBack}
-    >
-      Volver al panel
-    </button>
-  }
-  onLogout={handleLogout}
-/>
+        userName={topBarName}
+        subtitle="Perfil"
+        avatarUrl={user?.avatarUrl || ""}
+        actions={
+          <RoleNav
+            roles={roles}
+            active="/employee/profile"
+            onNavigate={router.push}
+          />
+        }
+        onLogout={handleLogout}
+      />
 
 
       <div className="space-y-4 px-4 pb-4">

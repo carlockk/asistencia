@@ -7,6 +7,8 @@ import User from "@/models/User";
 
 export const runtime = "nodejs";
 
+const RATING_VALUES = ["siempre", "casi_siempre", "aveces", "nunca"];
+
 async function requireAuth() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
@@ -49,15 +51,17 @@ function normalizeDetail(ev) {
 
 function sanitizeResponses(responses) {
   if (!Array.isArray(responses)) return [];
-  const allowed = new Set(["siempre", "casi_siempre", "aveces", "nunca"]);
   return responses
     .map((r) => {
       const value = r?.value;
       const itemId = (r?.itemId || "").toString().trim();
-      if (!itemId || !allowed.has(value)) return null;
+      if (!itemId) return null;
+      const trimmed =
+        typeof value === "string" ? value.toString().trim() : value;
+      if (trimmed === "" || trimmed === null || trimmed === undefined) return null;
       return {
         itemId,
-        value,
+        value: trimmed,
         comment: (r?.comment || "").toString().trim()
       };
     })
@@ -66,11 +70,31 @@ function sanitizeResponses(responses) {
 
 function collectCheckableIds(items = [], acc = []) {
   items.forEach((item) => {
-    const hasCheck = item?.hasCheck !== false;
+    const fieldType = item?.fieldType || item?.type;
+    const hasCheck = fieldType === "section" ? false : item?.hasCheck !== false;
     if (hasCheck && item?.id) acc.push(item.id);
     if (item?.children?.length) collectCheckableIds(item.children, acc);
   });
   return acc;
+}
+
+function fieldTypeFor(item) {
+  if (item?.fieldType) return item.fieldType;
+  if (item?.type) return item.type;
+  if (item?.hasCheck === false) return "section";
+  return "rating";
+}
+
+function allowedValuesFor(item, fieldType) {
+  if (Array.isArray(item?.options) && item.options.length > 0) {
+    return item.options.map((o) => o.value || o.label);
+  }
+  if (fieldType === "rating") return RATING_VALUES;
+  return [];
+}
+
+function isValidTime(value) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 export async function GET(_req, { params }) {
@@ -121,10 +145,10 @@ export async function PUT(req, { params }) {
     }
 
     const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
-    if (evaluation.assignedTo?._id?.toString() !== payload.id) {
+    if (!roles.includes("admin") && evaluation.assignedTo?._id?.toString() !== payload.id) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
-    if (!roles.includes("evaluator")) {
+    if (!roles.includes("evaluator") && !roles.includes("admin")) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 });
     }
 
@@ -141,20 +165,61 @@ export async function PUT(req, { params }) {
       );
     }
     if (checkableIds.length > 0) {
-      const validById = new Map();
+      const itemMap = new Map();
       (evaluation.checklist?.items || []).forEach(function walk(item) {
         if (item?.id) {
-          const opts =
-            Array.isArray(item.options) && item.options.length > 0
-              ? item.options.map((o) => o.value || o.label)
-              : ["siempre", "casi_siempre", "aveces", "nunca"];
-          validById.set(item.id.toString(), opts);
+          const fieldType = fieldTypeFor(item);
+          if (fieldType !== "section") {
+            itemMap.set(item.id.toString(), {
+              type: fieldType,
+              options: allowedValuesFor(item, fieldType)
+            });
+          }
         }
         if (item?.children?.length) item.children.forEach(walk);
       });
+
+      const responseMap = new Map(responses.map((r) => [r.itemId, r.value]));
+      const missing = Array.from(itemMap.keys()).some((id) => {
+        const val = responseMap.get(id);
+        return val === undefined || val === null || val === "";
+      });
+      if (missing) {
+        return NextResponse.json(
+          { message: "Completa todas las preguntas antes de enviar." },
+          { status: 400 }
+        );
+      }
+
       const invalid = responses.some((r) => {
-        const allowed = validById.get(r.itemId);
-        return Array.isArray(allowed) ? !allowed.includes(r.value) : false;
+        const item = itemMap.get(r.itemId);
+        if (!item) return false;
+        const value = r.value;
+        switch (item.type) {
+          case "rating":
+          case "select":
+            return !item.options.includes(value);
+          case "boolean": {
+            const allowed = ["si", "no", "true", "false", true, false, "1", "0"];
+            return !allowed.includes(value);
+          }
+          case "number": {
+            if (typeof value === "number") return !Number.isFinite(value);
+            const parsed = Number(value);
+            return Number.isNaN(parsed);
+          }
+          case "date": {
+            if (typeof value !== "string") return true;
+            const parsed = new Date(value);
+            return Number.isNaN(parsed.getTime());
+          }
+          case "time":
+            return typeof value !== "string" || !isValidTime(value);
+          case "text":
+            return typeof value !== "string" || value.trim().length === 0;
+          default:
+            return false;
+        }
       });
       if (invalid) {
         return NextResponse.json(

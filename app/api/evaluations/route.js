@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import Evaluation from "@/models/Evaluation";
 import Checklist from "@/models/Checklist";
+import EvaluationSchedule from "@/models/EvaluationSchedule";
 import User from "@/models/User";
 
 export const runtime = "nodejs";
@@ -52,10 +53,62 @@ function parseDate(value) {
   return d;
 }
 
+function isValidTime(value) {
+  if (!value) return true;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
 function endOfDay(date) {
   const d = new Date(date);
   d.setHours(23, 59, 59, 999);
   return d;
+}
+
+function periodKeyFor(date, frequency) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  if (frequency === "monthly") {
+    return `${year}-${month}`;
+  }
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function createEvaluationIfMissing(schedule, now) {
+  const periodKey = periodKeyFor(now, schedule.frequency);
+  const existing = await Evaluation.findOne({
+    schedule: schedule._id,
+    periodKey
+  }).select("_id");
+  if (existing) return null;
+
+  const evaluation = await Evaluation.create({
+    checklist: schedule.checklist,
+    schedule: schedule._id,
+    periodKey,
+    assignedTo: schedule.evaluator,
+    assignedBy: schedule.createdBy,
+    employee: schedule.employee || undefined,
+    notes: schedule.notes || ""
+  });
+
+  await evaluation.populate("checklist", "title");
+  await evaluation.populate("assignedTo", "firstName lastName username role");
+  await evaluation.populate("employee", "firstName lastName username role");
+  return evaluation;
+}
+
+async function ensureScheduledEvaluations(payload, roles) {
+  const scheduleFilter = { active: true };
+  if (!roles.includes("admin")) {
+    scheduleFilter.evaluator = payload.id;
+  }
+  const schedules = await EvaluationSchedule.find(scheduleFilter);
+  if (schedules.length === 0) return;
+  const now = new Date();
+  for (const schedule of schedules) {
+    await createEvaluationIfMissing(schedule, now);
+  }
 }
 
 export async function GET(req) {
@@ -66,6 +119,7 @@ export async function GET(req) {
     if (!roles.includes("admin") && !roles.includes("evaluator")) {
       throw new Error("FORBIDDEN");
     }
+    await ensureScheduledEvaluations(payload, roles);
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.max(
@@ -187,12 +241,30 @@ export async function POST(req) {
       : [];
     const applyToAllEmployees = Boolean(body.applyToAllEmployees);
     const notes = (body.notes || "").trim();
+    const recurrence = body.recurrence || {};
+    const recurrenceEnabled = Boolean(recurrence.enabled);
+    const frequency = (recurrence.frequency || "").toString().trim().toLowerCase();
+    const dueTime = (recurrence.dueTime || "").toString().trim();
 
     if (!checklistId || evaluatorIds.length === 0) {
       return NextResponse.json(
         { message: "Checklist y evaluador son obligatorios" },
         { status: 400 }
       );
+    }
+    if (recurrenceEnabled) {
+      if (!["daily", "monthly"].includes(frequency)) {
+        return NextResponse.json(
+          { message: "Periodicidad invalida" },
+          { status: 400 }
+        );
+      }
+      if (!isValidTime(dueTime)) {
+        return NextResponse.json(
+          { message: "La hora limite no es valida" },
+          { status: 400 }
+        );
+      }
     }
 
     const checklist = await Checklist.findById(checklistId);
@@ -221,9 +293,12 @@ export async function POST(req) {
       const evaluatorRoles = Array.isArray(evaluator?.roles) && evaluator.roles.length
         ? evaluator.roles
         : [evaluator?.role];
-      if (!evaluator || !evaluatorRoles.includes("evaluator")) {
+      if (
+        !evaluator ||
+        (!evaluatorRoles.includes("evaluator") && !evaluatorRoles.includes("admin"))
+      ) {
         return NextResponse.json(
-          { message: "El usuario elegido no es un evaluador valido" },
+          { message: "El usuario elegido no es valido" },
           { status: 400 }
         );
       }
@@ -242,18 +317,45 @@ export async function POST(req) {
           }
         }
 
-        const evaluation = await Evaluation.create({
-          checklist: checklistId,
-          assignedTo: evaluatorId,
-          assignedBy: payload.id,
-          employee: empId || undefined,
-          notes
-        });
+        if (recurrenceEnabled) {
+          const scheduleFilter = {
+            checklist: checklistId,
+            evaluator: evaluatorId,
+            employee: empId || null,
+            frequency,
+            dueTime: dueTime || "",
+            active: true
+          };
+          let schedule = await EvaluationSchedule.findOne(scheduleFilter);
+          if (!schedule) {
+            schedule = await EvaluationSchedule.create({
+              checklist: checklistId,
+              evaluator: evaluatorId,
+              employee: empId || undefined,
+              createdBy: payload.id,
+              frequency,
+              dueTime: dueTime || "",
+              notes
+            });
+          }
+          const createdEval = await createEvaluationIfMissing(schedule, new Date());
+          if (createdEval) {
+            created.push(normalizeEvaluation(createdEval));
+          }
+        } else {
+          const evaluation = await Evaluation.create({
+            checklist: checklistId,
+            assignedTo: evaluatorId,
+            assignedBy: payload.id,
+            employee: empId || undefined,
+            notes
+          });
 
-        await evaluation.populate("checklist", "title");
-        await evaluation.populate("assignedTo", "firstName lastName username role");
-        await evaluation.populate("employee", "firstName lastName username role");
-        created.push(normalizeEvaluation(evaluation));
+          await evaluation.populate("checklist", "title");
+          await evaluation.populate("assignedTo", "firstName lastName username role");
+          await evaluation.populate("employee", "firstName lastName username role");
+          created.push(normalizeEvaluation(evaluation));
+        }
       }
     }
 

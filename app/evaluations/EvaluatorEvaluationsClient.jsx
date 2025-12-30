@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "../components/TopBar";
-import { ratingOptions, collectCheckableIds, optionsForItem } from "./utils";
+import { fieldTypeForItem } from "./utils";
 import { useAvatar } from "./useAvatar";
+import ChecklistForm from "./components/ChecklistForm";
+import RoleNav from "../components/RoleNav";
 
-export default function EvaluatorEvaluationsClient({ evaluatorName }) {
+export default function EvaluatorEvaluationsClient({ evaluatorName, roles = [] }) {
   const router = useRouter();
   const avatarUrl = useAvatar();
   const pageSize = 10;
@@ -92,9 +94,27 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
     setResponseMap((prev) => ({ ...prev, [itemId]: value }));
   }
 
+  function isResponseFilled(item, value) {
+    const fieldType = fieldTypeForItem(item);
+    if (fieldType === "section") return true;
+    if (fieldType === "number") return value !== "" && !Number.isNaN(Number(value));
+    if (fieldType === "text") return typeof value === "string" && value.trim() !== "";
+    if (fieldType === "date") return typeof value === "string" && value.trim() !== "";
+    if (fieldType === "time") return typeof value === "string" && value.trim() !== "";
+    return value !== undefined && value !== null && value !== "";
+  }
+
   function ensureAllAnswered(items) {
-    const ids = collectCheckableIds(items, []);
-    return ids.every((id) => responseMap[id]);
+    let valid = true;
+    const walk = (list) => {
+      list.forEach((item) => {
+        const value = responseMap[item.id];
+        if (!isResponseFilled(item, value)) valid = false;
+        if (item.children?.length) walk(item.children);
+      });
+    };
+    walk(items);
+    return valid;
   }
 
   async function handleSubmit(e) {
@@ -141,48 +161,9 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  function renderChecklist(items, level = 0) {
+  function renderChecklist(items) {
     return (
-      <div className="space-y-2">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="border border-slate-100 rounded-xl bg-white/70 p-3"
-            style={{ marginLeft: level * 18 }}
-          >
-            <p className="text-sm font-semibold text-slate-800 mb-2">{item.title}</p>
-            {item.hasCheck === false ? (
-              <p className="text-[11px] text-slate-500 mb-1">Solo título, sin check.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {optionsForItem(item).map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`px-3 py-1 rounded-full border text-[12px] cursor-pointer ${
-                      responseMap[item.id] === opt.value
-                        ? "bg-banco-rojo text-white border-banco-rojo"
-                        : "bg-white text-slate-700 border-slate-200"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={`resp-${item.id}`}
-                      value={opt.value}
-                      className="hidden"
-                      checked={responseMap[item.id] === opt.value}
-                      onChange={() => setResponse(item.id, opt.value)}
-                    />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-            )}
-            {item.children?.length ? (
-              <div className="mt-2">{renderChecklist(item.children, level + 1)}</div>
-            ) : null}
-          </div>
-        ))}
-      </div>
+      <ChecklistForm items={items} responseMap={responseMap} onChange={setResponse} />
     );
   }
 
@@ -192,7 +173,9 @@ export default function EvaluatorEvaluationsClient({ evaluatorName }) {
         userName={evaluatorName}
         subtitle="Evaluador"
         avatarUrl={avatarUrl}
-        actions={<span className="text-[11px] text-slate-600">Mis evaluaciones</span>}
+        actions={
+          <RoleNav roles={roles} active="/evaluations" onNavigate={router.push} />
+        }
         onLogout={async () => {
           await fetch("/api/auth/logout", { method: "POST" });
           router.push("/");
